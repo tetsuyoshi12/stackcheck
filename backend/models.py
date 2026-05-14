@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, ForeignKey,
-    Enum, UniqueConstraint, func,
+    UniqueConstraint, func,
 )
 from sqlalchemy.orm import relationship
 from database import Base
@@ -42,7 +42,7 @@ class Question(Base):
     option_c = Column(String(500), nullable=False)
     option_d = Column(String(500), nullable=False)
     correct_option = Column(
-        Enum("a", "b", "c", "d", name="correct_option_enum"),
+        String(1),
         nullable=False,
     )
     explanation = Column(Text, nullable=False)

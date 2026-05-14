@@ -16,16 +16,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # correct_option enum（存在チェックしてから作成）
-    conn = op.get_bind()
-    exists = conn.execute(
-        sa.text("SELECT 1 FROM pg_type WHERE typname = 'correct_option_enum'")
-    ).fetchone()
-    if not exists:
-        conn.execute(
-            sa.text("CREATE TYPE correct_option_enum AS ENUM ('a', 'b', 'c', 'd')")
-        )
-
     # topics テーブル
     op.create_table(
         "topics",
@@ -42,7 +32,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_topics_id"), "topics", ["id"], unique=False)
 
-    # questions テーブル
+    # questions テーブル（correct_optionはStringで管理、アプリ層でa/b/c/dを保証）
     op.create_table(
         "questions",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -52,11 +42,7 @@ def upgrade() -> None:
         sa.Column("option_b", sa.String(length=500), nullable=False),
         sa.Column("option_c", sa.String(length=500), nullable=False),
         sa.Column("option_d", sa.String(length=500), nullable=False),
-        sa.Column(
-            "correct_option",
-            sa.Enum("a", "b", "c", "d", name="correct_option_enum", create_type=False),
-            nullable=False,
-        ),
+        sa.Column("correct_option", sa.String(length=1), nullable=False),
         sa.Column("explanation", sa.Text(), nullable=False),
         sa.Column("order", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["topic_id"], ["topics.id"], ondelete="CASCADE"),
@@ -71,6 +57,5 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_questions_topic_id"), table_name="questions")
     op.drop_index(op.f("ix_questions_id"), table_name="questions")
     op.drop_table("questions")
-    op.execute("DROP TYPE IF EXISTS correct_option_enum")
     op.drop_index(op.f("ix_topics_id"), table_name="topics")
     op.drop_table("topics")
