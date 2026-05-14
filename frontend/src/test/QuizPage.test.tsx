@@ -32,7 +32,7 @@ const renderQuizPage = () =>
   )
 
 describe('QuizPage', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks() })
 
   it('問題を表示する', async () => {
     vi.mocked(client.getQuestions).mockResolvedValue(mockQuestions)
