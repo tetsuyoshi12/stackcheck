@@ -16,8 +16,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # correct_option enum（IF NOT EXISTSで冪等に作成）
-    op.execute("CREATE TYPE IF NOT EXISTS correct_option_enum AS ENUM ('a', 'b', 'c', 'd')")
+    # correct_option enum（存在チェックしてから作成）
+    conn = op.get_bind()
+    exists = conn.execute(
+        sa.text("SELECT 1 FROM pg_type WHERE typname = 'correct_option_enum'")
+    ).fetchone()
+    if not exists:
+        conn.execute(
+            sa.text("CREATE TYPE correct_option_enum AS ENUM ('a', 'b', 'c', 'd')")
+        )
 
     # topics テーブル
     op.create_table(
