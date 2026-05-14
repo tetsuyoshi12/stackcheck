@@ -16,6 +16,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # correct_option enum（IF NOT EXISTSで冪等に作成）
+    op.execute("CREATE TYPE IF NOT EXISTS correct_option_enum AS ENUM ('a', 'b', 'c', 'd')")
+
     # topics テーブル
     op.create_table(
         "topics",
@@ -32,10 +35,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_topics_id"), "topics", ["id"], unique=False)
 
-    # correct_option enum
-    correct_option_enum = sa.Enum("a", "b", "c", "d", name="correct_option_enum")
-    correct_option_enum.create(op.get_bind())
-
     # questions テーブル
     op.create_table(
         "questions",
@@ -48,7 +47,7 @@ def upgrade() -> None:
         sa.Column("option_d", sa.String(length=500), nullable=False),
         sa.Column(
             "correct_option",
-            sa.Enum("a", "b", "c", "d", name="correct_option_enum"),
+            sa.Enum("a", "b", "c", "d", name="correct_option_enum", create_type=False),
             nullable=False,
         ),
         sa.Column("explanation", sa.Text(), nullable=False),
@@ -65,6 +64,6 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_questions_topic_id"), table_name="questions")
     op.drop_index(op.f("ix_questions_id"), table_name="questions")
     op.drop_table("questions")
-    sa.Enum(name="correct_option_enum").drop(op.get_bind())
+    op.execute("DROP TYPE IF EXISTS correct_option_enum")
     op.drop_index(op.f("ix_topics_id"), table_name="topics")
     op.drop_table("topics")
