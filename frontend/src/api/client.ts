@@ -1,0 +1,44 @@
+import axios from 'axios'
+import type { Topic, Question, QuestionCreate } from '../types'
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+})
+
+// ユーザー向けAPI
+
+export const getTopics = async (): Promise<Topic[]> => {
+  const { data } = await api.get<Topic[]>('/topics')
+  return data
+}
+
+export const getQuestions = async (topicId: number): Promise<Question[]> => {
+  const { data } = await api.get<Question[]>(`/topics/${topicId}/questions`)
+  return data
+}
+
+// 管理者向けAPI（Basic認証ヘッダー付き）
+
+export const postTopic = async (
+  title: string,
+  authHeader: string,
+): Promise<Topic> => {
+  const { data } = await api.post<Topic>(
+    '/admin/topics',
+    { title },
+    { headers: { Authorization: authHeader } },
+  )
+  return data
+}
+
+export const postQuestion = async (
+  payload: QuestionCreate,
+  authHeader: string,
+): Promise<Question> => {
+  const { data } = await api.post<Question>(
+    '/admin/questions',
+    payload,
+    { headers: { Authorization: authHeader } },
+  )
+  return data
+}
