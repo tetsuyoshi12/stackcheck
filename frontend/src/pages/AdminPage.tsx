@@ -34,7 +34,7 @@ export default function AdminPage() {
   // 問題一覧
   const [selectedTopic, setSelectedTopic] = useState<TopicAdminResponse | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
-  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [editQ, setEditQ] = useState<Partial<Question>>({})
 
   // 登録タブ
@@ -125,7 +125,8 @@ export default function AdminPage() {
   const handleSelectTopic = async (t: TopicAdminResponse) => {
     setSelectedTopic(t)
     setEditingTopic(null)
-    setEditingQuestion(null)
+    setSelectedQuestion(null)
+    setEditQ({})
     try {
       const qs = await getAdminQuestions(t.id, authHeader())
       setQuestions(qs)
@@ -134,20 +135,22 @@ export default function AdminPage() {
     }
   }
 
-  const handleEditQuestion = (q: Question) => {
-    setEditingQuestion(q)
+  const handleSelectQuestion = (q: Question) => {
+    setSelectedQuestion(q)
     setEditQ({ ...q })
   }
 
   const handleSaveQuestion = async () => {
-    if (!editingQuestion) return
+    if (!selectedQuestion) return
     try {
-      await updateQuestion(editingQuestion.id, editQ, authHeader())
+      await updateQuestion(selectedQuestion.id, editQ, authHeader())
       showMessage('success', '問題を更新しました')
-      setEditingQuestion(null)
       if (selectedTopic) {
         const qs = await getAdminQuestions(selectedTopic.id, authHeader())
         setQuestions(qs)
+        // 更新後も同じ問題を選択状態に保つ
+        const updated = qs.find((q) => q.id === selectedQuestion.id)
+        if (updated) { setSelectedQuestion(updated); setEditQ({ ...updated }) }
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -159,10 +162,12 @@ export default function AdminPage() {
   }
 
   const handleDeleteQuestion = async (q: Question) => {
-    if (!window.confirm(`問題「${q.question_text.slice(0, 30)}...」を削除しますか？`)) return
+    if (!window.confirm(`問題${q.order}「${q.question_text.slice(0, 30)}...」を削除しますか？`)) return
     try {
       await deleteQuestion(q.id, authHeader())
       showMessage('success', '問題を削除しました')
+      setSelectedQuestion(null)
+      setEditQ({})
       if (selectedTopic) {
         const qs = await getAdminQuestions(selectedTopic.id, authHeader())
         setQuestions(qs)
@@ -342,49 +347,106 @@ export default function AdminPage() {
             )}
           </section>
 
-          {/* 問題一覧 */}
+          {/* 問題管理 */}
           {selectedTopic && (
             <section className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="font-semibold text-gray-700 mb-1">問題一覧</h2>
-              <p className="text-xs text-blue-500 mb-4">{selectedTopic.title}</p>
+              <div className="mb-4">
+                <h2 className="font-semibold text-gray-700">問題管理</h2>
+                <p className="text-xs text-blue-500 mt-0.5">{selectedTopic.title}</p>
+              </div>
+
               {questions.length === 0 ? (
                 <p className="text-sm text-gray-400">問題がありません</p>
               ) : (
-                <div className="space-y-3">
-                  {questions.map((q) => (
-                    <div key={q.id} className="border border-gray-200 rounded-lg p-3">
-                      {editingQuestion?.id === q.id ? (
-                        // 問題編集フォーム
-                        <div className="space-y-2">
-                          <textarea value={editQ.question_text ?? ''} onChange={(e) => setEditQ({ ...editQ, question_text: e.target.value })} rows={2} className={inputCls} placeholder="問題文" />
-                          {(['option_a', 'option_b', 'option_c', 'option_d'] as const).map((k) => (
-                            <input key={k} value={(editQ[k] as string) ?? ''} onChange={(e) => setEditQ({ ...editQ, [k]: e.target.value })} className={inputCls} placeholder={`選択肢 ${k.slice(-1).toUpperCase()}`} />
+                <>
+                  {/* 問題番号ボタン */}
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    {questions.map((q) => (
+                      <button
+                        key={q.id}
+                        onClick={() => handleSelectQuestion(q)}
+                        className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors ${
+                          selectedQuestion?.id === q.id
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {q.order}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 選択した問題の編集フォーム */}
+                  {selectedQuestion && (
+                    <div className="border border-blue-200 rounded-xl p-4 bg-blue-50 space-y-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-blue-600">問題 {selectedQuestion.order}</span>
+                        <button onClick={() => handleDeleteQuestion(selectedQuestion)} className={btnDanger}>削除</button>
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">問題文</label>
+                        <textarea
+                          value={editQ.question_text ?? ''}
+                          onChange={(e) => setEditQ({ ...editQ, question_text: e.target.value })}
+                          rows={3}
+                          className={inputCls}
+                        />
+                      </div>
+
+                      {(['a', 'b', 'c', 'd'] as const).map((k) => (
+                        <div key={k}>
+                          <label className="text-xs text-gray-500 mb-1 block">選択肢 {k.toUpperCase()}</label>
+                          <input
+                            value={(editQ[`option_${k}` as keyof Question] as string) ?? ''}
+                            onChange={(e) => setEditQ({ ...editQ, [`option_${k}`]: e.target.value })}
+                            className={inputCls}
+                          />
+                        </div>
+                      ))}
+
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">正解</label>
+                        <select
+                          value={editQ.correct_option ?? 'a'}
+                          onChange={(e) => setEditQ({ ...editQ, correct_option: e.target.value as 'a' | 'b' | 'c' | 'd' })}
+                          className={inputCls}
+                        >
+                          {(['a', 'b', 'c', 'd'] as const).map((o) => (
+                            <option key={o} value={o}>正解: {o.toUpperCase()}</option>
                           ))}
-                          <select value={editQ.correct_option ?? 'a'} onChange={(e) => setEditQ({ ...editQ, correct_option: e.target.value as 'a' | 'b' | 'c' | 'd' })} className={inputCls}>
-                            {(['a', 'b', 'c', 'd'] as const).map((o) => <option key={o} value={o}>正解: {o.toUpperCase()}</option>)}
-                          </select>
-                          <textarea value={editQ.explanation ?? ''} onChange={(e) => setEditQ({ ...editQ, explanation: e.target.value })} rows={2} className={inputCls} placeholder="解説" />
-                          <input type="number" min={1} max={5} value={editQ.order ?? 1} onChange={(e) => setEditQ({ ...editQ, order: Number(e.target.value) })} className={inputCls} placeholder="出題順（1〜5）" />
-                          <div className="flex gap-2">
-                            <button onClick={handleSaveQuestion} className={btnPrimary}>保存</button>
-                            <button onClick={() => setEditingQuestion(null)} className={btnSecondary}>キャンセル</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="text-sm text-gray-800 font-medium flex-1">{q.order}. {q.question_text}</p>
-                            <div className="flex gap-1 shrink-0">
-                              <button onClick={() => handleEditQuestion(q)} className={btnSecondary}>編集</button>
-                              <button onClick={() => handleDeleteQuestion(q)} className={btnDanger}>削除</button>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-400">正解: {q.correct_option.toUpperCase()}</p>
-                        </div>
-                      )}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">解説</label>
+                        <textarea
+                          value={editQ.explanation ?? ''}
+                          onChange={(e) => setEditQ({ ...editQ, explanation: e.target.value })}
+                          rows={3}
+                          className={inputCls}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">出題順（1〜5）</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={editQ.order ?? 1}
+                          onChange={(e) => setEditQ({ ...editQ, order: Number(e.target.value) })}
+                          className={inputCls}
+                        />
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={handleSaveQuestion} className={btnPrimary}>保存</button>
+                        <button onClick={() => { setSelectedQuestion(null); setEditQ({}) }} className={btnSecondary}>閉じる</button>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </section>
           )}
