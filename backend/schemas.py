@@ -31,8 +31,25 @@ class TopicCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
 
 
+class TopicUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    category_id: Optional[int] = None
+
+
 class TopicCategoryUpdate(BaseModel):
     category_id: Optional[int] = None
+
+
+class TopicAdminResponse(BaseModel):
+    """管理者向けトピックレスポンス（問題数含む）"""
+    id: int
+    title: str
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    question_count: int = 0
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TopicResponse(BaseModel):
@@ -82,3 +99,14 @@ class QuestionResponse(BaseModel):
     order: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class QuestionUpdate(BaseModel):
+    question_text: Optional[str] = Field(None, min_length=1)
+    option_a: Optional[str] = Field(None, min_length=1, max_length=500)
+    option_b: Optional[str] = Field(None, min_length=1, max_length=500)
+    option_c: Optional[str] = Field(None, min_length=1, max_length=500)
+    option_d: Optional[str] = Field(None, min_length=1, max_length=500)
+    correct_option: Optional[CorrectOption] = None
+    explanation: Optional[str] = Field(None, min_length=1)
+    order: Optional[int] = Field(None, ge=1, le=5)

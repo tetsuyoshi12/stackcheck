@@ -48,17 +48,68 @@ export const postCategory = async (
   return data
 }
 
-export const updateTopicCategory = async (
+export interface TopicAdminResponse {
+  id: number
+  title: string
+  category_id: number | null
+  category_name: string | null
+  question_count: number
+  created_at: string
+}
+
+export const getAdminTopics = async (authHeader: string): Promise<TopicAdminResponse[]> => {
+  const { data } = await api.get<TopicAdminResponse[]>('/admin/topics', {
+    headers: { Authorization: authHeader },
+  })
+  return data
+}
+
+export const updateTopic = async (
   topicId: number,
-  categoryId: number | null,
+  payload: { title?: string; category_id?: number | null },
   authHeader: string,
 ): Promise<Topic> => {
   const { data } = await api.put<Topic>(
     `/admin/topics/${topicId}`,
-    { category_id: categoryId },
+    payload,
     { headers: { Authorization: authHeader } },
   )
   return data
+}
+
+export const deleteTopic = async (topicId: number, authHeader: string): Promise<void> => {
+  await api.delete(`/admin/topics/${topicId}`, {
+    headers: { Authorization: authHeader },
+  })
+}
+
+export const getAdminQuestions = async (
+  topicId: number,
+  authHeader: string,
+): Promise<Question[]> => {
+  const { data } = await api.get<Question[]>(`/admin/topics/${topicId}/questions`, {
+    headers: { Authorization: authHeader },
+  })
+  return data
+}
+
+export const updateQuestion = async (
+  questionId: number,
+  payload: Partial<Omit<Question, 'id' | 'topic_id'>>,
+  authHeader: string,
+): Promise<Question> => {
+  const { data } = await api.put<Question>(
+    `/admin/questions/${questionId}`,
+    payload,
+    { headers: { Authorization: authHeader } },
+  )
+  return data
+}
+
+export const deleteQuestion = async (questionId: number, authHeader: string): Promise<void> => {
+  await api.delete(`/admin/questions/${questionId}`, {
+    headers: { Authorization: authHeader },
+  })
 }
 
 export const postQuestion = async (

@@ -12,8 +12,8 @@ from typing import List, Optional
 from database import get_db
 from models import Topic, Question, Category
 from schemas import (
-    TopicCreate, TopicResponse, TopicCategoryUpdate,
-    QuestionCreate, QuestionResponse,
+    TopicCreate, TopicUpdate, TopicResponse, TopicAdminResponse, TopicCategoryUpdate,
+    QuestionCreate, QuestionUpdate, QuestionResponse,
     CategoryCreate, CategoryResponse,
 )
 
@@ -63,6 +63,37 @@ def create_category(
 
 # --- トピック ---
 
+@router.get("/admin/topics", response_model=List[TopicAdminResponse])
+def list_admin_topics(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """管理者用トピック一覧（問題数・カテゴリ含む）"""
+    from sqlalchemy import func as sqlfunc
+    rows = (
+        db.query(
+            Topic,
+            sqlfunc.count(Question.id).label("question_count"),
+        )
+        .outerjoin(Question, Question.topic_id == Topic.id)
+        .options(joinedload(Topic.category))
+        .group_by(Topic.id)
+        .order_by(Topic.created_at.desc())
+        .all()
+    )
+    result = []
+    for topic, question_count in rows:
+        result.append(TopicAdminResponse(
+            id=topic.id,
+            title=topic.title,
+            category_id=topic.category_id,
+            category_name=topic.category.name if topic.category else None,
+            question_count=question_count,
+            created_at=topic.created_at,
+        ))
+    return result
+
+
 @router.post("/admin/topics", response_model=TopicResponse, status_code=201)
 def create_topic(
     topic_in: TopicCreate,
@@ -82,13 +113,13 @@ def create_topic(
 
 
 @router.put("/admin/topics/{topic_id}", response_model=TopicResponse)
-def update_topic_category(
+def update_topic(
     topic_id: int,
-    update_in: TopicCategoryUpdate,
+    update_in: TopicUpdate,
     db: Session = Depends(get_db),
     _: str = Depends(verify_credentials),
 ):
-    """トピックのカテゴリを更新する"""
+    """トピックのタイトル・カテゴリを更新する"""
     topic = (
         db.query(Topic)
         .options(joinedload(Topic.category))
@@ -98,15 +129,21 @@ def update_topic_category(
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
 
-    if update_in.category_id is not None:
-        category = db.query(Category).filter(Category.id == update_in.category_id).first()
-        if not category:
-            raise HTTPException(status_code=404, detail="Category not found")
+    if update_in.title is not None:
+        topic.title = update_in.title
+    if "category_id" in update_in.model_fields_set or update_in.category_id is not None:
+        if update_in.category_id is not None:
+            category = db.query(Category).filter(Category.id == update_in.category_id).first()
+            if not category:
+                raise HTTPException(status_code=404, detail="Category not found")
+        topic.category_id = update_in.category_id
 
-    topic.category_id = update_in.category_id
-    db.commit()
-    db.refresh(topic)
-    # リレーションを再ロード
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Topic title already exists")
+
     topic = (
         db.query(Topic)
         .options(joinedload(Topic.category))
@@ -116,7 +153,39 @@ def update_topic_category(
     return TopicResponse.from_orm_with_category(topic)
 
 
+@router.delete("/admin/topics/{topic_id}", status_code=204)
+def delete_topic(
+    topic_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """トピックを削除する（関連問題もCASCADE削除）"""
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    db.delete(topic)
+    db.commit()
+
+
 # --- 問題 ---
+
+@router.get("/admin/topics/{topic_id}/questions", response_model=List[QuestionResponse])
+def list_admin_questions(
+    topic_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """管理者用：指定トピックの問題一覧"""
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return (
+        db.query(Question)
+        .filter(Question.topic_id == topic_id)
+        .order_by(Question.order.asc())
+        .all()
+    )
+
 
 @router.post("/admin/questions", response_model=QuestionResponse, status_code=201)
 def create_question(
@@ -151,6 +220,61 @@ def create_question(
             detail="Question with this order already exists for the topic",
         )
     return new_question
+
+
+@router.put("/admin/questions/{question_id}", response_model=QuestionResponse)
+def update_question(
+    question_id: int,
+    update_in: QuestionUpdate,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """問題を編集する"""
+    question = db.query(Question).filter(Question.id == question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    if update_in.question_text is not None:
+        question.question_text = update_in.question_text
+    if update_in.option_a is not None:
+        question.option_a = update_in.option_a
+    if update_in.option_b is not None:
+        question.option_b = update_in.option_b
+    if update_in.option_c is not None:
+        question.option_c = update_in.option_c
+    if update_in.option_d is not None:
+        question.option_d = update_in.option_d
+    if update_in.correct_option is not None:
+        question.correct_option = update_in.correct_option.value
+    if update_in.explanation is not None:
+        question.explanation = update_in.explanation
+    if update_in.order is not None:
+        question.order = update_in.order
+
+    try:
+        db.commit()
+        db.refresh(question)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Question with this order already exists for the topic",
+        )
+    return question
+
+
+@router.delete("/admin/questions/{question_id}", status_code=204)
+def delete_question(
+    question_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """問題を削除する"""
+    question = db.query(Question).filter(Question.id == question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    db.delete(question)
+    db.commit()
 
 
 # --- CSVアップロード ---
