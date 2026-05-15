@@ -291,7 +291,7 @@ export default function AdminPage() {
           <section className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-700">トピック一覧</h2>
-              <button onClick={loadAdminTopics} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
+              <button onClick={() => loadAdminTopics()} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
                 読み込む
               </button>
             </div>
