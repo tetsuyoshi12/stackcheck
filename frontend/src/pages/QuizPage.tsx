@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { getQuestions } from '../api/client'
 import type { Answer, Question } from '../types'
 
@@ -15,6 +15,8 @@ const OPTION_LABELS: Record<string, string> = {
 export default function QuizPage() {
   const { topicId } = useParams<{ topicId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const topicTitle = (location.state as { topicTitle?: string } | null)?.topicTitle ?? ''
 
   const [questions, setQuestions] = useState<Question[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -48,7 +50,7 @@ export default function QuizPage() {
       setSelectedOption(null)
       setPhase('quiz')
     } else {
-      navigate('/result', { state: { answers: [...answers], topicId: Number(topicId) } })
+      navigate('/result', { state: { answers: [...answers], topicId: Number(topicId), topicTitle } })
     }
   }
 
@@ -82,10 +84,15 @@ export default function QuizPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
-      {/* 進捗 */}
-      <p data-testid="progress-text" className="text-sm text-gray-400 mb-4">
-        {currentIndex + 1} / {questions.length}
-      </p>
+      {/* トピック名・進捗 */}
+      <div className="mb-4">
+        {topicTitle && (
+          <p className="text-xs text-blue-500 font-medium mb-1">{topicTitle}</p>
+        )}
+        <p data-testid="progress-text" className="text-sm text-gray-400">
+          {currentIndex + 1} / {questions.length}
+        </p>
+      </div>
 
       {/* 問題文 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">

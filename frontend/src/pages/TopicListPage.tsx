@@ -47,7 +47,7 @@ export default function TopicListPage() {
             <li key={topic.id}>
               <button
                 data-testid={`topic-card-${topic.id}`}
-                onClick={() => navigate(`/quiz/${topic.id}`)}
+                onClick={() => navigate(`/quiz/${topic.id}`, { state: { topicTitle: topic.title } })}
                 className="w-full text-left px-5 py-4 bg-white rounded-xl shadow-sm border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all"
               >
                 <span className="text-gray-800 font-medium">{topic.title}</span>

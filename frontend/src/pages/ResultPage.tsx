@@ -4,6 +4,7 @@ import type { Answer } from '../types'
 interface LocationState {
   answers: Answer[]
   topicId: number
+  topicTitle?: string
 }
 
 const OPTION_LABELS: Record<string, string> = { a: 'A', b: 'B', c: 'C', d: 'D' }
@@ -18,7 +19,7 @@ export default function ResultPage() {
     return <Navigate to="/" replace />
   }
 
-  const { answers, topicId } = state
+  const { answers, topicId, topicTitle } = state
   const correctCount = answers.filter((a) => a.is_correct).length
 
   return (
@@ -49,7 +50,7 @@ export default function ResultPage() {
         </button>
         <button
           data-testid="retry-button"
-          onClick={() => navigate(`/quiz/${topicId}`)}
+          onClick={() => navigate(`/quiz/${topicId}`, { state: { topicTitle } })}
           className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
         >
           もう一度
