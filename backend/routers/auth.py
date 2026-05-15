@@ -140,9 +140,9 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
 
     access_token = create_jwt(user.id)
 
-    # フロントエンドにトークンを渡してリダイレクト（ハッシュで渡すことでサーバーに届かない）
+    # フロントエンドのトップページにトークンを渡してリダイレクト
     return RedirectResponse(
-        url=f"{FRONTEND_ORIGIN}/auth/callback#token={access_token}"
+        url=f"{FRONTEND_ORIGIN}/?token={access_token}"
     )
 
 
