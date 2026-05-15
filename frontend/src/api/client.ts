@@ -42,3 +42,23 @@ export const postQuestion = async (
   )
   return data
 }
+
+export interface CsvUploadResult {
+  success_count: number
+  skip_count: number
+  errors: string[]
+}
+
+export const uploadCsv = async (
+  file: File,
+  authHeader: string,
+): Promise<CsvUploadResult> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post<CsvUploadResult>(
+    '/admin/csv-upload',
+    formData,
+    { headers: { Authorization: authHeader, 'Content-Type': 'multipart/form-data' } },
+  )
+  return data
+}

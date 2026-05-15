@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { getTopics, postTopic, postQuestion } from '../api/client'
+import { useEffect, useRef, useState } from 'react'
+import { getTopics, postTopic, postQuestion, uploadCsv } from '../api/client'
+import type { CsvUploadResult } from '../api/client'
 import type { Topic, QuestionCreate } from '../types'
 import axios from 'axios'
 
@@ -27,6 +28,9 @@ export default function AdminPage() {
   const [topicTitle, setTopicTitle] = useState('')
   const [questionForm, setQuestionForm] = useState<QuestionCreate>(EMPTY_QUESTION)
   const [message, setMessage] = useState<Message | null>(null)
+  const [csvResult, setCsvResult] = useState<CsvUploadResult | null>(null)
+  const [csvUploading, setCsvUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const authHeader = () => `Basic ${btoa(`${username}:${password}`)}`
 
@@ -69,6 +73,26 @@ export default function AdminPage() {
         else if (err.response?.status === 409) showMessage('error', '同じ出題順の問題が既に存在します')
         else showMessage('error', 'エラーが発生しました')
       }
+    }
+  }
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCsvResult(null)
+    setCsvUploading(true)
+    try {
+      const result = await uploadCsv(file, authHeader())
+      setCsvResult(result)
+      getTopics().then(setTopics).catch(() => {})
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
+        else showMessage('error', err.response?.data?.detail || 'CSVアップロードに失敗しました')
+      }
+    } finally {
+      setCsvUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -136,9 +160,46 @@ export default function AdminPage() {
         </div>
       </section>
 
+      {/* CSVアップロード */}
+      <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <h2 className="font-semibold text-gray-700 mb-1">CSVアップロード</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          形式: topic_title, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, order
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleCsvUpload}
+            disabled={csvUploading}
+            className="text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-40"
+          />
+          {csvUploading && <span className="text-sm text-gray-400">アップロード中...</span>}
+        </div>
+
+        {csvResult && (
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-4 text-sm">
+              <span className="text-green-600 font-semibold">✓ 成功: {csvResult.success_count}件</span>
+              {csvResult.skip_count > 0 && (
+                <span className="text-yellow-600 font-semibold">⚠ スキップ: {csvResult.skip_count}件</span>
+              )}
+            </div>
+            {csvResult.errors.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-yellow-700 mb-1">エラー詳細:</p>
+                <ul className="text-xs text-yellow-700 space-y-1">
+                  {csvResult.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       {/* 問題登録 */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-700 mb-4">問題登録</h2>
+      <section className="bg-white rounded-xl border border-gray-200 p-6">        <h2 className="font-semibold text-gray-700 mb-4">問題登録</h2>
         <div className="space-y-3">
           <select
             data-testid="question-topic-select"
