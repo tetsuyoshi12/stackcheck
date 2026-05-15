@@ -54,7 +54,7 @@ export default function AdminPage() {
   }
 
   const refreshAll = () => {
-    const header = authHeader()
+    const header = `Basic ${btoa(`${username}:${password}`)}`
     getAdminTopics(header).then(setAdminTopics).catch(() => {})
     getTopics().then(setTopics).catch(() => {})
     getCategories().then(setCategories).catch(() => {})
@@ -65,7 +65,7 @@ export default function AdminPage() {
     getCategories().then(setCategories).catch(() => {})
   }, [])
 
-  const loadAdminTopics = (user = username, pass = password) => {
+  const loadAdminTopics = (user: string, pass: string) => {
     const header = `Basic ${btoa(`${user}:${pass}`)}`
     getAdminTopics(header).then(setAdminTopics).catch(() => showMessage('error', '認証に失敗しました。ユーザー名・パスワードを確認してください'))
   }
@@ -276,7 +276,7 @@ export default function AdminPage() {
 
       {/* タブ */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1">
-        <button onClick={() => { setTab('list'); if (username && password) getAdminTopics(authHeader()).then(setAdminTopics).catch(() => {}) }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'list' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+        <button onClick={() => { setTab('list'); if (username && password) { const h = `Basic ${btoa(`${username}:${password}`)}`; getAdminTopics(h).then(setAdminTopics).catch(() => {}) } }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'list' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           トピック・問題管理
         </button>
         <button onClick={() => setTab('register')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'register' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -291,7 +291,7 @@ export default function AdminPage() {
           <section className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-700">トピック一覧</h2>
-              <button onClick={() => loadAdminTopics()} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
+              <button onClick={() => loadAdminTopics(username, password)} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
                 読み込む
               </button>
             </div>
