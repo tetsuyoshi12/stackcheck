@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from routers import topics, questions, admin, categories
+from routers import topics, questions, admin, categories, auth
 
 load_dotenv()
 
@@ -13,11 +13,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS設定
+# CORS設定（認証フローのためallow_credentialsをTrueに変更）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
@@ -27,6 +27,7 @@ app.include_router(topics.router)
 app.include_router(questions.router)
 app.include_router(admin.router)
 app.include_router(categories.router)
+app.include_router(auth.router)
 
 
 @app.get("/health")

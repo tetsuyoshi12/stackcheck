@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Topic, Question, QuestionCreate, Category } from '../types'
+import type { Topic, Question, QuestionCreate, Category, User } from '../types'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
@@ -15,6 +15,18 @@ export const getTopics = async (): Promise<Topic[]> => {
 export const getCategories = async (): Promise<Category[]> => {
   const { data } = await api.get<Category[]>('/categories')
   return data
+}
+
+export const getMe = async (token: string): Promise<User> => {
+  const { data } = await api.get<User>('/auth/me', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return data
+}
+
+export const getGoogleLoginUrl = (): string => {
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  return `${base}/auth/google`
 }
 
 export const getQuestions = async (topicId: number): Promise<Question[]> => {

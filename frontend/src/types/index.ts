@@ -4,6 +4,13 @@ export interface Category {
   created_at: string
 }
 
+export interface User {
+  id: number
+  email: string
+  name: string
+  avatar_url: string | null
+}
+
 export interface Topic {
   id: number
   title: string
