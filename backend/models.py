@@ -1,4 +1,3 @@
-from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, ForeignKey,
     UniqueConstraint, func,
@@ -7,17 +6,38 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
-class Topic(Base):
-    __tablename__ = "topics"
+class Category(Base):
+    __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False, unique=True)
+    name = Column(String(100), nullable=False, unique=True)
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
 
+    topics = relationship("Topic", back_populates="category")
+
+
+class Topic(Base):
+    __tablename__ = "topics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False, unique=True)
+    category_id = Column(
+        Integer,
+        ForeignKey("categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    category = relationship("Category", back_populates="topics")
     questions = relationship(
         "Question",
         back_populates="topic",
@@ -41,10 +61,7 @@ class Question(Base):
     option_b = Column(String(500), nullable=False)
     option_c = Column(String(500), nullable=False)
     option_d = Column(String(500), nullable=False)
-    correct_option = Column(
-        String(1),
-        nullable=False,
-    )
+    correct_option = Column(String(1), nullable=False)
     explanation = Column(Text, nullable=False)
     order = Column(Integer, nullable=False)
 

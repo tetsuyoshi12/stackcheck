@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { getTopics, postTopic, postQuestion, uploadCsv } from '../api/client'
+import {
+  getTopics, postTopic, postQuestion, uploadCsv,
+  getCategories, postCategory, updateTopicCategory,
+} from '../api/client'
 import type { CsvUploadResult } from '../api/client'
-import type { Topic, QuestionCreate } from '../types'
+import type { Topic, QuestionCreate, Category } from '../types'
 import axios from 'axios'
 
 interface Message {
@@ -25,7 +28,9 @@ export default function AdminPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [topics, setTopics] = useState<Topic[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [topicTitle, setTopicTitle] = useState('')
+  const [categoryName, setCategoryName] = useState('')
   const [questionForm, setQuestionForm] = useState<QuestionCreate>(EMPTY_QUESTION)
   const [message, setMessage] = useState<Message | null>(null)
   const [csvResult, setCsvResult] = useState<CsvUploadResult | null>(null)
@@ -39,17 +44,33 @@ export default function AdminPage() {
     setTimeout(() => setMessage(null), 4000)
   }
 
-  // トピック一覧を取得（問題登録フォーム用）
-  useEffect(() => {
+  const refreshData = () => {
     getTopics().then(setTopics).catch(() => {})
-  }, [])
+    getCategories().then(setCategories).catch(() => {})
+  }
+
+  useEffect(() => { refreshData() }, [])
+
+  const handleCreateCategory = async () => {
+    try {
+      await postCategory(categoryName, authHeader())
+      showMessage('success', `カテゴリ「${categoryName}」を登録しました`)
+      setCategoryName('')
+      getCategories().then(setCategories).catch(() => {})
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
+        else if (err.response?.status === 409) showMessage('error', '同じ名前のカテゴリが既に存在します')
+        else showMessage('error', 'エラーが発生しました')
+      }
+    }
+  }
 
   const handleCreateTopic = async () => {
     try {
       await postTopic(topicTitle, authHeader())
       showMessage('success', `トピック「${topicTitle}」を登録しました`)
       setTopicTitle('')
-      // トピック一覧を更新
       getTopics().then(setTopics).catch(() => {})
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -60,11 +81,22 @@ export default function AdminPage() {
     }
   }
 
+  const handleTopicCategoryChange = async (topicId: number, categoryId: number | null) => {
+    try {
+      await updateTopicCategory(topicId, categoryId, authHeader())
+      getTopics().then(setTopics).catch(() => {})
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
+        else showMessage('error', 'カテゴリの更新に失敗しました')
+      }
+    }
+  }
+
   const handleCreateQuestion = async () => {
     try {
       await postQuestion(questionForm, authHeader())
       showMessage('success', '問題を登録しました')
-      // topic_idは維持してフォームをリセット
       setQuestionForm({ ...EMPTY_QUESTION, topic_id: questionForm.topic_id })
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -84,7 +116,7 @@ export default function AdminPage() {
     try {
       const result = await uploadCsv(file, authHeader())
       setCsvResult(result)
-      getTopics().then(setTopics).catch(() => {})
+      refreshData()
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
@@ -137,6 +169,73 @@ export default function AdminPage() {
         </div>
       </section>
 
+      {/* CSVアップロード */}
+      <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <h2 className="font-semibold text-gray-700 mb-1">CSVアップロード</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          形式: topic_title, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, order[, category_name]
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleCsvUpload}
+            disabled={csvUploading}
+            className="text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-40"
+          />
+          {csvUploading && <span className="text-sm text-gray-400">アップロード中...</span>}
+        </div>
+        {csvResult && (
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-4 text-sm">
+              <span className="text-green-600 font-semibold">✓ 成功: {csvResult.success_count}件</span>
+              {csvResult.skip_count > 0 && (
+                <span className="text-yellow-600 font-semibold">⚠ スキップ: {csvResult.skip_count}件</span>
+              )}
+            </div>
+            {csvResult.errors.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-yellow-700 mb-1">エラー詳細:</p>
+                <ul className="text-xs text-yellow-700 space-y-1">
+                  {csvResult.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* カテゴリ登録 */}
+      <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <h2 className="font-semibold text-gray-700 mb-4">カテゴリ登録</h2>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="カテゴリ名（例：Python / SQL / Git）"
+            value={categoryName}
+            onChange={(e) => setCategoryName(e.target.value)}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+          />
+          <button
+            onClick={handleCreateCategory}
+            disabled={!categoryName.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 transition-colors"
+          >
+            登録
+          </button>
+        </div>
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {categories.map((c) => (
+              <span key={c.id} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full border border-blue-100">
+                {c.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* トピック登録 */}
       <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
         <h2 className="font-semibold text-gray-700 mb-4">トピック登録</h2>
@@ -160,46 +259,38 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* CSVアップロード */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h2 className="font-semibold text-gray-700 mb-1">CSVアップロード</h2>
-        <p className="text-xs text-gray-400 mb-4">
-          形式: topic_title, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, order
-        </p>
-        <div className="flex items-center gap-3">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleCsvUpload}
-            disabled={csvUploading}
-            className="text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-40"
-          />
-          {csvUploading && <span className="text-sm text-gray-400">アップロード中...</span>}
-        </div>
-
-        {csvResult && (
-          <div className="mt-4 space-y-2">
-            <div className="flex gap-4 text-sm">
-              <span className="text-green-600 font-semibold">✓ 成功: {csvResult.success_count}件</span>
-              {csvResult.skip_count > 0 && (
-                <span className="text-yellow-600 font-semibold">⚠ スキップ: {csvResult.skip_count}件</span>
-              )}
-            </div>
-            {csvResult.errors.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-yellow-700 mb-1">エラー詳細:</p>
-                <ul className="text-xs text-yellow-700 space-y-1">
-                  {csvResult.errors.map((e, i) => <li key={i}>• {e}</li>)}
-                </ul>
+      {/* トピック一覧・カテゴリ設定 */}
+      {topics.length > 0 && (
+        <section className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <h2 className="font-semibold text-gray-700 mb-4">トピックのカテゴリ設定</h2>
+          <div className="space-y-2">
+            {topics.map((topic) => (
+              <div key={topic.id} className="flex items-center gap-3">
+                <span className="flex-1 text-sm text-gray-700 truncate">{topic.title}</span>
+                <select
+                  value={topic.category_id ?? ''}
+                  onChange={(e) =>
+                    handleTopicCategoryChange(
+                      topic.id,
+                      e.target.value === '' ? null : Number(e.target.value),
+                    )
+                  }
+                  className="w-36 border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+                >
+                  <option value="">未設定</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
-            )}
+            ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* 問題登録 */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">        <h2 className="font-semibold text-gray-700 mb-4">問題登録</h2>
+      <section className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-semibold text-gray-700 mb-4">問題登録</h2>
         <div className="space-y-3">
           <select
             data-testid="question-topic-select"

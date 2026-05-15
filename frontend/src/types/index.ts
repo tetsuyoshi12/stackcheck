@@ -1,6 +1,14 @@
+export interface Category {
+  id: number
+  name: string
+  created_at: string
+}
+
 export interface Topic {
   id: number
   title: string
+  category_id: number | null
+  category_name: string | null
   created_at: string
 }
 

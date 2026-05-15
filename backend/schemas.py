@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -10,18 +11,48 @@ class CorrectOption(str, Enum):
     d = "d"
 
 
+# --- Category ---
+
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- Topic ---
 
 class TopicCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
 
 
+class TopicCategoryUpdate(BaseModel):
+    category_id: Optional[int] = None
+
+
 class TopicResponse(BaseModel):
     id: int
     title: str
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_orm_with_category(cls, topic) -> "TopicResponse":
+        return cls(
+            id=topic.id,
+            title=topic.title,
+            category_id=topic.category_id,
+            category_name=topic.category.name if topic.category else None,
+            created_at=topic.created_at,
+        )
 
 
 # --- Question ---
