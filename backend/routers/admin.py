@@ -70,17 +70,25 @@ def list_admin_topics(
 ):
     """管理者用トピック一覧（問題数・カテゴリ含む）"""
     from sqlalchemy import func as sqlfunc
-    rows = (
+
+    # 問題数をサブクエリで取得（joinedloadとGROUP BYの競合を避ける）
+    question_count_subq = (
         db.query(
-            Topic,
+            Question.topic_id,
             sqlfunc.count(Question.id).label("question_count"),
         )
-        .outerjoin(Question, Question.topic_id == Topic.id)
+        .group_by(Question.topic_id)
+        .subquery()
+    )
+
+    rows = (
+        db.query(Topic, question_count_subq.c.question_count)
+        .outerjoin(question_count_subq, question_count_subq.c.topic_id == Topic.id)
         .options(joinedload(Topic.category))
-        .group_by(Topic.id)
         .order_by(Topic.created_at.desc())
         .all()
     )
+
     result = []
     for topic, question_count in rows:
         result.append(TopicAdminResponse(
@@ -88,7 +96,7 @@ def list_admin_topics(
             title=topic.title,
             category_id=topic.category_id,
             category_name=topic.category.name if topic.category else None,
-            question_count=question_count,
+            question_count=question_count or 0,
             created_at=topic.created_at,
         ))
     return result
