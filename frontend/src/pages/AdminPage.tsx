@@ -67,7 +67,13 @@ export default function AdminPage() {
 
   const loadAdminTopics = (user: string, pass: string) => {
     const header = `Basic ${btoa(`${user}:${pass}`)}`
-    getAdminTopics(header).then(setAdminTopics).catch(() => showMessage('error', '認証に失敗しました。ユーザー名・パスワードを確認してください'))
+    getAdminTopics(header)
+      .then(setAdminTopics)
+      .catch((err) => {
+        const status = err?.response?.status
+        const detail = err?.response?.data?.detail || err?.message || '不明なエラー'
+        showMessage('error', `失敗 (${status}): ${detail} / user="${user}" pass="${pass ? '***' : '(空)'}"`)
+      })
   }
 
   useEffect(() => {
