@@ -1,25 +1,26 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function AuthCallbackPage() {
-  const [searchParams] = useSearchParams()
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [status, setStatus] = useState('処理中...')
+  const [status, setStatus] = useState('ログイン処理中...')
 
   useEffect(() => {
-    const token = searchParams.get('token')
+    // ハッシュからトークンを取得（例: #token=xxx）
+    const hash = window.location.hash
+    const token = hash.startsWith('#token=') ? hash.slice(7) : null
+
     if (!token) {
       setStatus('トークンがありません。トップに戻ります...')
       setTimeout(() => navigate('/'), 1500)
       return
     }
 
-    setStatus('ログイン処理中...')
     login(token)
       .then(() => {
-        setStatus('ログイン成功！リダイレクト中...')
+        setStatus('ログイン成功！')
         navigate('/')
       })
       .catch((err) => {
