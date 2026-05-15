@@ -64,9 +64,14 @@ export default function AdminPage() {
     getCategories().then(setCategories).catch(() => {})
   }, [])
 
+  const loadAdminTopics = () => {
+    getAdminTopics(authHeader()).then(setAdminTopics).catch(() => showMessage('error', '認証に失敗しました。ユーザー名・パスワードを確認してください'))
+  }
+
   useEffect(() => {
-    if (tab === 'list' && username && password) {
-      getAdminTopics(authHeader()).then(setAdminTopics).catch(() => {})
+    if (tab === 'list') {
+      // タブ切り替え時は認証情報があれば自動ロード
+      if (username && password) loadAdminTopics()
     }
   }, [tab])
 
@@ -270,7 +275,7 @@ export default function AdminPage() {
 
       {/* タブ */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1">
-        <button onClick={() => { setTab('list'); getAdminTopics(authHeader()).then(setAdminTopics).catch(() => {}) }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'list' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+        <button onClick={() => { setTab('list'); if (username && password) getAdminTopics(authHeader()).then(setAdminTopics).catch(() => {}) }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'list' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           トピック・問題管理
         </button>
         <button onClick={() => setTab('register')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'register' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -283,7 +288,12 @@ export default function AdminPage() {
         <div className="space-y-4">
           {/* トピック一覧 */}
           <section className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-700 mb-4">トピック一覧</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-700">トピック一覧</h2>
+              <button onClick={loadAdminTopics} className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
+                読み込む
+              </button>
+            </div>
             {adminTopics.length === 0 ? (
               <p className="text-sm text-gray-400">トピックがありません</p>
             ) : (
