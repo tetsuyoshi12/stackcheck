@@ -46,6 +46,10 @@ export default function AdminPage() {
   const [csvResult, setCsvResult] = useState<CsvUploadResult | null>(null)
   const [csvUploading, setCsvUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // 新規登録タブ：問題番号選択
+  const [registerTopicId, setRegisterTopicId] = useState(0)
+  const [registerTopicQuestions, setRegisterTopicQuestions] = useState<Question[]>([])
+  const [registerOrder, setRegisterOrder] = useState<number | null>(null)
 
   const authHeader = () => `Basic ${btoa(`${username}:${password}`)}`
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -181,7 +185,42 @@ export default function AdminPage() {
     }
   }
 
-  // ---- 登録タブ操作 ----
+  const handleRegisterTopicChange = async (topicId: number) => {
+    setRegisterTopicId(topicId)
+    setRegisterOrder(null)
+    setQuestionForm({ ...EMPTY_QUESTION, topic_id: topicId })
+    if (topicId) {
+      try {
+        const qs = await getAdminQuestions(topicId, authHeader())
+        setRegisterTopicQuestions(qs)
+      } catch {
+        setRegisterTopicQuestions([])
+      }
+    } else {
+      setRegisterTopicQuestions([])
+    }
+  }
+
+  const handleRegisterOrderSelect = (order: number) => {
+    setRegisterOrder(order)
+    const existing = registerTopicQuestions.find((q) => q.order === order)
+    if (existing) {
+      setQuestionForm({
+        topic_id: registerTopicId,
+        question_text: existing.question_text,
+        option_a: existing.option_a,
+        option_b: existing.option_b,
+        option_c: existing.option_c,
+        option_d: existing.option_d,
+        correct_option: existing.correct_option,
+        explanation: existing.explanation,
+        order: existing.order,
+      })
+    } else {
+      setQuestionForm({ ...EMPTY_QUESTION, topic_id: registerTopicId, order })
+    }
+  }
+
   const handleCreateCategory = async () => {
     try {
       await postCategory(categoryName, authHeader())
@@ -216,7 +255,12 @@ export default function AdminPage() {
     try {
       await postQuestion(questionForm, authHeader())
       showMessage('success', '問題を登録しました')
-      setQuestionForm({ ...EMPTY_QUESTION, topic_id: questionForm.topic_id })
+      // 番号ボタンの状態を更新
+      if (registerTopicId) {
+        const qs = await getAdminQuestions(registerTopicId, authHeader())
+        setRegisterTopicQuestions(qs)
+      }
+      // フォームはそのまま（次の問題を続けて入力しやすいように）
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
@@ -505,24 +549,124 @@ export default function AdminPage() {
 
           {/* 問題登録 */}
           <section className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-700 mb-3">問題登録</h2>
+            <h2 className="font-semibold text-gray-700 mb-3">問題登録・編集</h2>
             <div className="space-y-3">
-              <select data-testid="question-topic-select" value={questionForm.topic_id} onChange={(e) => setQuestionForm({ ...questionForm, topic_id: Number(e.target.value) })} className={inputCls}>
-                <option value={0}>トピックを選択</option>
-                {topics.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-              </select>
-              <textarea data-testid="question-text-input" placeholder="問題文" value={questionForm.question_text} onChange={(e) => setQuestionForm({ ...questionForm, question_text: e.target.value })} rows={3} className={inputCls} />
-              {(['a', 'b', 'c', 'd'] as const).map((opt) => (
-                <input key={opt} data-testid={`option-${opt}-input`} type="text" placeholder={`選択肢 ${opt.toUpperCase()}`}
-                  value={questionForm[`option_${opt}` as keyof QuestionCreate] as string}
-                  onChange={(e) => setQuestionForm({ ...questionForm, [`option_${opt}`]: e.target.value })} className={inputCls} />
-              ))}
-              <select data-testid="correct-option-select" value={questionForm.correct_option} onChange={(e) => setQuestionForm({ ...questionForm, correct_option: e.target.value as 'a' | 'b' | 'c' | 'd' })} className={inputCls}>
-                {(['a', 'b', 'c', 'd'] as const).map((o) => <option key={o} value={o}>正解: {o.toUpperCase()}</option>)}
-              </select>
-              <textarea data-testid="explanation-input" placeholder="解説文" value={questionForm.explanation} onChange={(e) => setQuestionForm({ ...questionForm, explanation: e.target.value })} rows={3} className={inputCls} />
-              <input data-testid="order-input" type="number" min={1} max={5} placeholder="出題順（1〜5）" value={questionForm.order} onChange={(e) => setQuestionForm({ ...questionForm, order: Number(e.target.value) })} className={inputCls} />
-              <button data-testid="create-question-button" onClick={handleCreateQuestion} disabled={!questionForm.topic_id || !questionForm.question_text.trim()} className={`w-full py-2 ${btnPrimary}`}>問題を登録</button>
+              {/* Step1: トピック選択 */}
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">① トピックを選択</label>
+                <select
+                  data-testid="question-topic-select"
+                  value={registerTopicId}
+                  onChange={(e) => handleRegisterTopicChange(Number(e.target.value))}
+                  className={inputCls}
+                >
+                  <option value={0}>トピックを選択</option>
+                  {topics.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+                </select>
+              </div>
+
+              {/* Step2: 問題番号選択 */}
+              {registerTopicId > 0 && (
+                <div>
+                  <label className="text-xs text-gray-500 mb-2 block">② 問題番号を選択（登録済みは青、未登録はグレー）</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((order) => {
+                      const exists = registerTopicQuestions.some((q) => q.order === order)
+                      return (
+                        <button
+                          key={order}
+                          onClick={() => handleRegisterOrderSelect(order)}
+                          className={`w-10 h-10 rounded-lg text-sm font-bold transition-colors ${
+                            registerOrder === order
+                              ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                              : exists
+                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          }`}
+                        >
+                          {order}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Step3: フォーム */}
+              {registerOrder !== null && (
+                <>
+                  <div className="pt-1 pb-1">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      registerTopicQuestions.some((q) => q.order === registerOrder)
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {registerTopicQuestions.some((q) => q.order === registerOrder) ? `問題${registerOrder}を編集` : `問題${registerOrder}を新規登録`}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">問題文</label>
+                    <textarea
+                      data-testid="question-text-input"
+                      placeholder="問題文"
+                      value={questionForm.question_text}
+                      onChange={(e) => setQuestionForm({ ...questionForm, question_text: e.target.value })}
+                      rows={3}
+                      className={inputCls}
+                    />
+                  </div>
+
+                  {(['a', 'b', 'c', 'd'] as const).map((opt) => (
+                    <div key={opt}>
+                      <label className="text-xs text-gray-500 mb-1 block">選択肢 {opt.toUpperCase()}</label>
+                      <input
+                        data-testid={`option-${opt}-input`}
+                        type="text"
+                        placeholder={`選択肢 ${opt.toUpperCase()}`}
+                        value={questionForm[`option_${opt}` as keyof QuestionCreate] as string}
+                        onChange={(e) => setQuestionForm({ ...questionForm, [`option_${opt}`]: e.target.value })}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
+
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">正解</label>
+                    <select
+                      data-testid="correct-option-select"
+                      value={questionForm.correct_option}
+                      onChange={(e) => setQuestionForm({ ...questionForm, correct_option: e.target.value as 'a' | 'b' | 'c' | 'd' })}
+                      className={inputCls}
+                    >
+                      {(['a', 'b', 'c', 'd'] as const).map((o) => (
+                        <option key={o} value={o}>正解: {o.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">解説</label>
+                    <textarea
+                      data-testid="explanation-input"
+                      placeholder="解説文"
+                      value={questionForm.explanation}
+                      onChange={(e) => setQuestionForm({ ...questionForm, explanation: e.target.value })}
+                      rows={3}
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <button
+                    data-testid="create-question-button"
+                    onClick={handleCreateQuestion}
+                    disabled={!questionForm.question_text.trim()}
+                    className={`w-full py-2 ${btnPrimary}`}
+                  >
+                    {registerTopicQuestions.some((q) => q.order === registerOrder) ? '上書き登録' : '新規登録'}
+                  </button>
+                </>
+              )}
             </div>
           </section>
         </div>
