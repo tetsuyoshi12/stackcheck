@@ -59,18 +59,22 @@ def get_current_user(
 @router.get("/auth/google")
 async def google_login():
     """Google OAuth認証を開始する"""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID が設定されていません")
+
     backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
     redirect_uri = f"{backend_url}/auth/google/callback"
 
-    async with AsyncOAuth2Client(
-        client_id=GOOGLE_CLIENT_ID,
-        redirect_uri=redirect_uri,
-    ) as client:
-        uri, state = client.create_authorization_url(
-            GOOGLE_AUTH_URL,
-            scope="openid email profile",
-        )
-    return RedirectResponse(url=uri)
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+    }
+    from urllib.parse import urlencode
+    url = f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+    return RedirectResponse(url=url)
 
 
 @router.get("/auth/google/callback")
