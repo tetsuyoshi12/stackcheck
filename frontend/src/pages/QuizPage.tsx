@@ -86,6 +86,12 @@ export default function QuizPage() {
     <div className="max-w-2xl mx-auto px-4 py-10">
       {/* トピック名・進捗 */}
       <div className="mb-4">
+        <button
+          onClick={() => navigate('/')}
+          className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1 mb-3"
+        >
+          ← トップに戻る
+        </button>
         {topicTitle && (
           <p className="text-xs text-blue-500 font-medium mb-1">{topicTitle}</p>
         )}
