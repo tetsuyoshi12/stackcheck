@@ -54,7 +54,8 @@ export default function AdminPage() {
   }
 
   const refreshAll = () => {
-    getAdminTopics(authHeader()).then(setAdminTopics).catch(() => {})
+    const header = authHeader()
+    getAdminTopics(header).then(setAdminTopics).catch(() => {})
     getTopics().then(setTopics).catch(() => {})
     getCategories().then(setCategories).catch(() => {})
   }
@@ -64,14 +65,14 @@ export default function AdminPage() {
     getCategories().then(setCategories).catch(() => {})
   }, [])
 
-  const loadAdminTopics = () => {
-    getAdminTopics(authHeader()).then(setAdminTopics).catch(() => showMessage('error', '認証に失敗しました。ユーザー名・パスワードを確認してください'))
+  const loadAdminTopics = (user = username, pass = password) => {
+    const header = `Basic ${btoa(`${user}:${pass}`)}`
+    getAdminTopics(header).then(setAdminTopics).catch(() => showMessage('error', '認証に失敗しました。ユーザー名・パスワードを確認してください'))
   }
 
   useEffect(() => {
-    if (tab === 'list') {
-      // タブ切り替え時は認証情報があれば自動ロード
-      if (username && password) loadAdminTopics()
+    if (tab === 'list' && username && password) {
+      loadAdminTopics(username, password)
     }
   }, [tab])
 
