@@ -56,6 +56,20 @@ def get_current_user(
     return user
 
 
+@router.get("/auth/debug")
+async def auth_debug():
+    """デバッグ用：環境変数の設定状況を確認する"""
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    return {
+        "GOOGLE_CLIENT_ID_set": bool(GOOGLE_CLIENT_ID),
+        "GOOGLE_CLIENT_SECRET_set": bool(GOOGLE_CLIENT_SECRET),
+        "JWT_SECRET_KEY_set": bool(os.getenv("JWT_SECRET_KEY")),
+        "BACKEND_URL": backend_url,
+        "redirect_uri_would_be": f"{backend_url}/auth/google/callback",
+        "FRONTEND_ORIGIN": FRONTEND_ORIGIN,
+    }
+
+
 @router.get("/auth/google")
 async def google_login():
     """Google OAuth認証を開始する"""
