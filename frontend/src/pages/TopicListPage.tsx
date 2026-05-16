@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getTopics, getCategories } from '../api/client'
 import type { Topic, Category } from '../types'
+import { useAuth } from '../contexts/AuthContext'
 
 const PAGE_SIZE = 10
 
@@ -13,6 +14,7 @@ export default function TopicListPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   useEffect(() => {
     Promise.all([getTopics(), getCategories()])
@@ -55,6 +57,20 @@ export default function TopicListPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <p className="text-gray-500 mb-6">トピックを選んでスキルを確認しよう</p>
+
+      {/* ダッシュボードへの導線（ログイン時のみ） */}
+      {user && (
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="w-full mb-6 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl shadow-sm hover:from-blue-700 hover:to-blue-600 transition-all"
+        >
+          <div className="text-left">
+            <p className="font-semibold text-sm">📊 スキルダッシュボードを見る</p>
+            <p className="text-blue-100 text-xs mt-0.5">正答率・習熟度・学習継続グラフを確認しよう</p>
+          </div>
+          <span className="text-blue-200 text-lg">→</span>
+        </button>
+      )}
 
       {/* カテゴリフィルター */}
       {categories.length > 0 && (

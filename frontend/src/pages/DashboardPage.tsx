@@ -121,6 +121,12 @@ export default function DashboardPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
       <div>
+        <button
+          onClick={() => navigate('/')}
+          className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1 mb-4"
+        >
+          ← トップに戻る
+        </button>
         <h1 className="text-2xl font-bold text-gray-800 mb-1">ダッシュボード</h1>
         <p className="text-gray-400 text-sm">{user.name} さんの学習状況</p>
       </div>
