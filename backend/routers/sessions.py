@@ -138,7 +138,7 @@ def get_dashboard(
             accuracy=total_correct / total_answers,
         ))
 
-    // 正答率の高い順にソート
+    # 正答率の高い順にソート
     category_accuracy.sort(key=lambda x: x.accuracy, reverse=True)
 
     # ③ 日別セッション数（直近90日）
