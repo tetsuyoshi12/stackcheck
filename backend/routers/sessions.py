@@ -76,66 +76,64 @@ def get_dashboard(
 ):
     """ダッシュボードデータを取得する（JWT認証必須）"""
 
-    # ① スキルマップ：カテゴリ別習熟率
     categories = db.query(Category).all()
+
+    # ① スキルマップ：習熟済みトピックのみブロック表示
+    # mastered_count > 0 のカテゴリのみ返す（未習熟カテゴリは表示しない）
     skill_map = []
-    for cat in categories:
-        topics = db.query(Topic).filter(Topic.category_id == cat.id).all()
-        total_count = len(topics)
-        if total_count == 0:
-            continue
-        topic_ids = [t.id for t in topics]
-        mastered_count = db.query(TopicMastery).filter(
-            TopicMastery.user_id == current_user.id,
-            TopicMastery.topic_id.in_(topic_ids),
-            TopicMastery.is_mastered == True,
-        ).count()
-        skill_map.append(CategoryMastery(
-            category_name=cat.name,
-            mastered_count=mastered_count,
-            total_count=total_count,
-            mastery_rate=mastered_count / total_count,
-        ))
-
-    # カテゴリなしトピックも集計
-    uncategorized_topics = db.query(Topic).filter(Topic.category_id == None).all()
-    if uncategorized_topics:
-        total_count = len(uncategorized_topics)
-        topic_ids = [t.id for t in uncategorized_topics]
-        mastered_count = db.query(TopicMastery).filter(
-            TopicMastery.user_id == current_user.id,
-            TopicMastery.topic_id.in_(topic_ids),
-            TopicMastery.is_mastered == True,
-        ).count()
-        skill_map.append(CategoryMastery(
-            category_name="未分類",
-            mastered_count=mastered_count,
-            total_count=total_count,
-            mastery_rate=mastered_count / total_count,
-        ))
-
-    # ② カテゴリ別正答率（正答率の低い順）
-    category_accuracy = []
     for cat in categories:
         topics = db.query(Topic).filter(Topic.category_id == cat.id).all()
         if not topics:
             continue
         topic_ids = [t.id for t in topics]
-        sessions = db.query(QuizSession).filter(
-            QuizSession.user_id == current_user.id,
-            QuizSession.topic_id.in_(topic_ids),
-        ).all()
-        if not sessions:
+        mastered_count = db.query(TopicMastery).filter(
+            TopicMastery.user_id == current_user.id,
+            TopicMastery.topic_id.in_(topic_ids),
+            TopicMastery.is_mastered == True,
+        ).count()
+        if mastered_count == 0:
+            continue  # 習熟済みトピックがないカテゴリは表示しない
+        skill_map.append(CategoryMastery(
+            category_name=cat.name,
+            mastered_count=mastered_count,
+            total_count=len(topics),
+            mastery_rate=mastered_count / len(topics),
+        ))
+
+    # ② カテゴリ別正答率
+    # - 分母 = カテゴリ内の全トピック数 × 5問
+    # - 同じトピックを複数回解いた場合は最新セッションのみ使用
+    # - 未解答トピックは 0/5 として計算
+    category_accuracy = []
+    for cat in categories:
+        topics = db.query(Topic).filter(Topic.category_id == cat.id).all()
+        if not topics:
             continue
-        total_correct = sum(s.score for s in sessions)
-        total_answers = sum(s.total for s in sessions)
-        if total_answers == 0:
-            continue
+
+        total_correct = 0
+        total_questions = len(topics) * 5  # 全トピック × 5問が分母
+
+        for topic in topics:
+            # 最新セッションのみ取得
+            latest = (
+                db.query(QuizSession)
+                .filter(
+                    QuizSession.user_id == current_user.id,
+                    QuizSession.topic_id == topic.id,
+                )
+                .order_by(QuizSession.created_at.desc())
+                .first()
+            )
+            if latest:
+                total_correct += latest.score
+            # 未解答トピックは 0点（分母には含まれる）
+
+        accuracy = total_correct / total_questions if total_questions > 0 else 0.0
         category_accuracy.append(CategoryAccuracy(
             category_name=cat.name,
             correct_count=total_correct,
-            total_count=total_answers,
-            accuracy=total_correct / total_answers,
+            total_count=total_questions,
+            accuracy=accuracy,
         ))
 
     # 正答率の高い順にソート

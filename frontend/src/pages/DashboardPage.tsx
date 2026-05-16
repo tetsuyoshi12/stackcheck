@@ -105,7 +105,7 @@ export default function DashboardPage() {
   // ツリーマップ用データ（recharts形式）
   const treemapData = data.skill_map.map((d) => ({
     name: d.category_name,
-    size: Math.max(d.total_count, 1),
+    size: Math.max(d.mastered_count, 1),  // 習熟済み数でサイズ決定
     mastered_count: d.mastered_count,
     total_count: d.total_count,
     mastery_rate: d.mastery_rate,
@@ -148,9 +148,9 @@ export default function DashboardPage() {
       {/* ① スキルマップ */}
       <section className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-700 mb-1">スキルマップ</h2>
-        <p className="text-xs text-gray-400 mb-4">ブロックの大きさ = カテゴリ内のトピック数 / 数字 = 習熟済み/全トピック</p>
+        <p className="text-xs text-gray-400 mb-4">習熟済みトピックがあるカテゴリのみ表示 / 数字 = 習熟済み/全トピック数</p>
         {treemapData.length === 0 ? (
-          <p className="text-gray-400 text-sm">データがありません。クイズを解いてみましょう！</p>
+          <p className="text-gray-400 text-sm">まだ習熟済みのトピックがありません。全問正解でトピックを習熟しよう！</p>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
             <Treemap
