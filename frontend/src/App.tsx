@@ -6,6 +6,7 @@ import TopicListPage from './pages/TopicListPage'
 import QuizPage from './pages/QuizPage'
 import ResultPage from './pages/ResultPage'
 import AdminPage from './pages/AdminPage'
+import DashboardPage from './pages/DashboardPage'
 
 // トップページでOAuthトークンを処理するラッパー
 function TopicListWithAuth() {
@@ -33,6 +34,7 @@ function App() {
           <Route path="/quiz/:topicId" element={<QuizPage />} />
           <Route path="/result" element={<ResultPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

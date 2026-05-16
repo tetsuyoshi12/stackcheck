@@ -127,3 +127,54 @@ class QuestionUpdate(BaseModel):
     correct_option: Optional[CorrectOption] = None
     explanation: Optional[str] = Field(None, min_length=1)
     order: Optional[int] = Field(None, ge=1, le=5)
+
+
+# --- Session ---
+
+class AnswerInput(BaseModel):
+    question_id: int
+    selected_option: str = Field(..., pattern="^[abcd]$")
+    is_correct: bool
+
+
+class SessionCreate(BaseModel):
+    topic_id: int
+    answers: list[AnswerInput]
+
+
+class SessionResponse(BaseModel):
+    id: int
+    topic_id: int
+    score: int
+    total: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Dashboard ---
+
+class CategoryMastery(BaseModel):
+    category_name: str
+    mastered_count: int
+    total_count: int
+    mastery_rate: float  # 0.0 - 1.0
+
+
+class CategoryAccuracy(BaseModel):
+    category_name: str
+    correct_count: int
+    total_count: int
+    accuracy: float  # 0.0 - 1.0
+
+
+class DailyActivity(BaseModel):
+    date: str  # YYYY-MM-DD
+    count: int
+
+
+class DashboardResponse(BaseModel):
+    skill_map: list[CategoryMastery]
+    category_accuracy: list[CategoryAccuracy]
+    daily_activity: list[DailyActivity]
+    streak: int

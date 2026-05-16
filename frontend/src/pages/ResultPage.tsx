@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { useLocation, useNavigate, Navigate } from 'react-router-dom'
 import type { Answer } from '../types'
+import { useAuth } from '../contexts/AuthContext'
+import { postSession } from '../api/client'
 
 interface LocationState {
   answers: Answer[]
@@ -12,9 +15,9 @@ const OPTION_LABELS: Record<string, string> = { a: 'A', b: 'B', c: 'C', d: 'D' }
 export default function ResultPage() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, token } = useAuth()
   const state = location.state as LocationState | null
 
-  // 直接アクセス時はトップにリダイレクト
   if (!state?.answers) {
     return <Navigate to="/" replace />
   }
@@ -22,10 +25,27 @@ export default function ResultPage() {
   const { answers, topicId, topicTitle } = state
   const correctCount = answers.filter((a) => a.is_correct).length
 
+  // ログイン中の場合、結果を自動保存
+  useEffect(() => {
+    if (!user || !token) return
+    postSession(
+      {
+        topic_id: topicId,
+        answers: answers.map((a) => ({
+          question_id: a.question.id,
+          selected_option: a.selected,
+          is_correct: a.is_correct,
+        })),
+      },
+      token,
+    ).catch(() => {}) // 保存失敗はサイレントに無視
+  }, [])
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       {/* スコア */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8 text-center">
+        {topicTitle && <p className="text-xs text-blue-500 mb-2">{topicTitle}</p>}
         <p className="text-gray-500 mb-2">結果</p>
         <p data-testid="score-text" className="text-5xl font-bold text-blue-600">
           {correctCount} <span className="text-2xl text-gray-400">/ {answers.length}</span>
@@ -37,6 +57,9 @@ export default function ResultPage() {
             ? '👍 よくできました'
             : '📚 復習しましょう'}
         </p>
+        {user && (
+          <p className="text-xs text-gray-400 mt-3">✓ 学習データを保存しました</p>
+        )}
       </div>
 
       {/* ボタン */}
@@ -55,6 +78,14 @@ export default function ResultPage() {
         >
           もう一度
         </button>
+        {user && (
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex-1 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+          >
+            ダッシュボード
+          </button>
+        )}
       </div>
 
       {/* 振り返り */}

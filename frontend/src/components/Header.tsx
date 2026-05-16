@@ -1,19 +1,32 @@
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getGoogleLoginUrl } from '../api/client'
 
 export default function Header() {
   const { user, logout, loading } = useAuth()
+  const navigate = useNavigate()
 
   if (loading) return null
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="max-w-3xl mx-auto flex items-center justify-between">
-        <span className="font-bold text-gray-800 text-lg">stackcheck</span>
+        <span
+          className="font-bold text-gray-800 text-lg cursor-pointer hover:text-blue-600 transition-colors"
+          onClick={() => navigate('/')}
+        >
+          stackcheck
+        </span>
 
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors hidden sm:block"
+              >
+                ダッシュボード
+              </button>
               {user.avatar_url && (
                 <img
                   src={user.avatar_url}

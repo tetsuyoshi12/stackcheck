@@ -155,3 +155,67 @@ export const uploadCsv = async (
   )
   return data
 }
+
+// セッション・ダッシュボード
+
+export interface AnswerInput {
+  question_id: number
+  selected_option: string
+  is_correct: boolean
+}
+
+export interface SessionCreate {
+  topic_id: number
+  answers: AnswerInput[]
+}
+
+export interface SessionResponse {
+  id: number
+  topic_id: number
+  score: number
+  total: number
+  created_at: string
+}
+
+export interface CategoryMastery {
+  category_name: string
+  mastered_count: number
+  total_count: number
+  mastery_rate: number
+}
+
+export interface CategoryAccuracy {
+  category_name: string
+  correct_count: number
+  total_count: number
+  accuracy: number
+}
+
+export interface DailyActivity {
+  date: string
+  count: number
+}
+
+export interface DashboardData {
+  skill_map: CategoryMastery[]
+  category_accuracy: CategoryAccuracy[]
+  daily_activity: DailyActivity[]
+  streak: number
+}
+
+export const postSession = async (
+  payload: SessionCreate,
+  token: string,
+): Promise<SessionResponse> => {
+  const { data } = await api.post<SessionResponse>('/sessions', payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return data
+}
+
+export const getDashboard = async (token: string): Promise<DashboardData> => {
+  const { data } = await api.get<DashboardData>('/dashboard', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return data
+}
