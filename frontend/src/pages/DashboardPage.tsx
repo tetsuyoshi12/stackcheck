@@ -135,8 +135,13 @@ export default function DashboardPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
         <span className="text-4xl">🔥</span>
         <div>
-          <p className="text-3xl font-bold text-orange-500">{data.streak}日</p>
+          <p className="text-3xl font-bold text-orange-500">
+            {data.streak >= 90 ? '90日以上' : `${data.streak}日`}
+          </p>
           <p className="text-gray-500 text-sm">連続学習ストリーク</p>
+          {data.streak === 0 && (
+            <p className="text-gray-400 text-xs mt-0.5">今日クイズを解いてストリークを始めよう！</p>
+          )}
         </div>
       </div>
 
@@ -160,7 +165,7 @@ export default function DashboardPage() {
       {/* ② カテゴリ別正答率 */}
       <section className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-700 mb-1">カテゴリ別正答率</h2>
-        <p className="text-xs text-gray-400 mb-4">正答率の低い順（要強化が上）</p>
+        <p className="text-xs text-gray-400 mb-4">正答率の高い順</p>
         {barData.length === 0 ? (
           <p className="text-gray-400 text-sm">データがありません。クイズを解いてみましょう！</p>
         ) : (

@@ -62,13 +62,13 @@ export default function TopicListPage() {
       {user && (
         <button
           onClick={() => navigate('/dashboard')}
-          className="w-full mb-6 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl shadow-sm hover:from-blue-700 hover:to-blue-600 transition-all"
+          className="w-full mb-6 flex items-center justify-between px-5 py-4 bg-gradient-to-r from-violet-600 to-indigo-500 text-white rounded-xl shadow-sm hover:from-violet-700 hover:to-indigo-600 transition-all"
         >
           <div className="text-left">
             <p className="font-semibold text-sm">📊 スキルダッシュボードを見る</p>
-            <p className="text-blue-100 text-xs mt-0.5">正答率・習熟度・学習継続グラフを確認しよう</p>
+            <p className="text-violet-100 text-xs mt-0.5">正答率・習熟度・学習継続グラフを確認しよう</p>
           </div>
-          <span className="text-blue-200 text-lg">→</span>
+          <span className="text-violet-200 text-lg">→</span>
         </button>
       )}
 
