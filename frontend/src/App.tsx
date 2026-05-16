@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Header from './components/Header'
+import Footer from './components/Footer'
 import TopicListPage from './pages/TopicListPage'
 import QuizPage from './pages/QuizPage'
 import ResultPage from './pages/ResultPage'
@@ -27,8 +28,19 @@ function TopicListWithAuth() {
 function App() {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppInner />
+    </AuthProvider>
+  )
+}
+
+function AppInner() {
+  const location = useLocation()
+  const isAdmin = location.pathname.startsWith('/admin')
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Header />
+      <main className="flex-1">
         <Routes>
           <Route path="/" element={<TopicListWithAuth />} />
           <Route path="/quiz/:topicId" element={<QuizPage />} />
@@ -37,8 +49,9 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
-    </AuthProvider>
+      </main>
+      {!isAdmin && <Footer />}
+    </div>
   )
 }
 
