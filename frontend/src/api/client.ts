@@ -226,6 +226,13 @@ export const getDashboard = async (token: string): Promise<DashboardData> => {
   return data
 }
 
+export const getMyMastery = async (token: string): Promise<{ mastered_topic_ids: number[] }> => {
+  const { data } = await api.get<{ mastered_topic_ids: number[] }>('/users/me/mastery', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return data
+}
+
 // 称号
 
 import type { Title, UserTitle, TitleRequirement } from '../types'

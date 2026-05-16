@@ -226,3 +226,16 @@ def get_dashboard(
         daily_activity=daily_activity,
         streak=streak,
     )
+
+
+@router.get("/users/me/mastery")
+def get_my_mastery(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """ログインユーザーの習熟済みトピックIDリストを返す"""
+    masteries = db.query(TopicMastery).filter(
+        TopicMastery.user_id == current_user.id,
+        TopicMastery.is_mastered == True,
+    ).all()
+    return {"mastered_topic_ids": [m.topic_id for m in masteries]}

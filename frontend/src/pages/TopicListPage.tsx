@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getTopics, getCategories } from '../api/client'
+import { getTopics, getCategories, getMyMastery } from '../api/client'
 import type { Topic, Category } from '../types'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -13,8 +13,9 @@ export default function TopicListPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [page, setPage] = useState(1)
+  const [masteredIds, setMasteredIds] = useState<Set<number>>(new Set())
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, token } = useAuth()
 
   useEffect(() => {
     Promise.all([getTopics(), getCategories()])
@@ -22,6 +23,14 @@ export default function TopicListPage() {
       .catch(() => setError('データの取得に失敗しました'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (token) {
+      getMyMastery(token)
+        .then((r) => setMasteredIds(new Set(r.mastered_topic_ids)))
+        .catch(() => {})
+    }
+  }, [token])
 
   // カテゴリフィルター
   const filtered = useMemo(() => {
@@ -108,24 +117,40 @@ export default function TopicListPage() {
         </p>
       ) : (
         <ul data-testid="topic-list" className="space-y-3">
-          {paged.map((topic) => (
+          {paged.map((topic) => {
+            const mastered = masteredIds.has(topic.id)
+            return (
             <li key={topic.id}>
               <button
                 data-testid={`topic-card-${topic.id}`}
                 onClick={() => navigate(`/quiz/${topic.id}`, { state: { topicTitle: topic.title } })}
-                className="w-full text-left px-5 py-4 bg-white rounded-xl shadow-sm border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all"
+                className={`w-full text-left px-5 py-4 rounded-xl shadow-sm border transition-all ${
+                  mastered
+                    ? 'bg-green-50 border-green-200 hover:border-green-400 hover:shadow-md'
+                    : 'bg-white border-gray-200 hover:border-blue-400 hover:shadow-md'
+                }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-gray-800 font-medium">{topic.title}</span>
-                  {topic.category_name && (
-                    <span className="shrink-0 px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-full border border-blue-100">
-                      {topic.category_name}
-                    </span>
-                  )}
+                  <span className={`font-medium ${mastered ? 'text-green-800' : 'text-gray-800'}`}>
+                    {topic.title}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {mastered && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+                        ✓ 習熟済
+                      </span>
+                    )}
+                    {topic.category_name && (
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded-full border border-blue-100">
+                        {topic.category_name}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
 
