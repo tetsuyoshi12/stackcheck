@@ -49,3 +49,25 @@ export interface QuestionCreate {
   explanation: string
   order: number
 }
+
+export interface TitleRequirement {
+  id: number
+  category_id: number
+  category_name: string | null
+  threshold: number
+}
+
+export interface Title {
+  id: number
+  name: string
+  description: string | null
+  requirements: TitleRequirement[]
+}
+
+export interface UserTitle {
+  id: number
+  title_id: number
+  title_name: string
+  acquired_at: string
+  is_active: boolean
+}

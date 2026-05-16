@@ -178,3 +178,48 @@ class DashboardResponse(BaseModel):
     category_accuracy: list[CategoryAccuracy]
     daily_activity: list[DailyActivity]
     streak: int
+
+
+# --- Title ---
+
+class TitleRequirementCreate(BaseModel):
+    category_id: int
+    threshold: int = Field(..., ge=0, le=100)  # 0〜100の整数（%）
+
+
+class TitleRequirementResponse(BaseModel):
+    id: int
+    category_id: int
+    category_name: Optional[str] = None
+    threshold: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TitleCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+
+
+class TitleUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+
+
+class TitleResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    requirements: list[TitleRequirementResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserTitleResponse(BaseModel):
+    id: int
+    title_id: int
+    title_name: str
+    acquired_at: datetime
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)

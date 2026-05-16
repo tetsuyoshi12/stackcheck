@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getGoogleLoginUrl } from '../api/client'
 
 export default function Header() {
-  const { user, logout, loading } = useAuth()
+  const { user, logout, loading, titles } = useAuth()
   const navigate = useNavigate()
 
   if (loading) return null
@@ -21,6 +21,20 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
+              {/* 称号バッジ */}
+              {titles.length > 0 && (
+                <div className="hidden sm:flex items-center gap-1">
+                  {titles.map((t) => (
+                    <span
+                      key={t.id}
+                      title={t.title_name}
+                      className="px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full border border-yellow-500"
+                    >
+                      {t.title_name}
+                    </span>
+                  ))}
+                </div>
+              )}
               <button
                 onClick={() => navigate('/dashboard')}
                 className="text-sm text-gray-600 hover:text-blue-600 font-medium transition-colors hidden sm:block"

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from routers import topics, questions, admin, categories, auth, sessions
+from routers import topics, questions, admin, categories, auth, sessions, titles
 
 load_dotenv()
 
@@ -29,6 +29,7 @@ app.include_router(admin.router)
 app.include_router(categories.router)
 app.include_router(auth.router)
 app.include_router(sessions.router)
+app.include_router(titles.router)
 
 
 @app.get("/health")

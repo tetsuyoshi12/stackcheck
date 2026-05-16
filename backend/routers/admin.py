@@ -10,11 +10,12 @@ from pydantic import BaseModel, ValidationError
 from typing import List, Optional
 
 from database import get_db
-from models import Topic, Question, Category
+from models import Topic, Question, Category, Title, TitleRequirement
 from schemas import (
     TopicCreate, TopicUpdate, TopicResponse, TopicAdminResponse, TopicCategoryUpdate,
     QuestionCreate, QuestionUpdate, QuestionResponse,
     CategoryCreate, CategoryResponse,
+    TitleCreate, TitleUpdate, TitleResponse, TitleRequirementCreate, TitleRequirementResponse,
 )
 
 router = APIRouter()
@@ -430,3 +431,140 @@ async def upload_csv(
         skip_count=skip_count,
         errors=errors,
     )
+
+
+# --- 称号管理 ---
+
+@router.get("/admin/titles", response_model=List[TitleResponse])
+def list_titles(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """称号一覧取得（管理者用）"""
+    titles = db.query(Title).all()
+    result = []
+    for t in titles:
+        reqs = [
+            TitleRequirementResponse(
+                id=r.id,
+                category_id=r.category_id,
+                category_name=r.category.name if r.category else None,
+                threshold=r.threshold,
+            )
+            for r in t.requirements
+        ]
+        result.append(TitleResponse(id=t.id, name=t.name, description=t.description, requirements=reqs))
+    return result
+
+
+@router.post("/admin/titles", response_model=TitleResponse, status_code=201)
+def create_title(
+    title_in: TitleCreate,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """称号を登録する"""
+    new_title = Title(name=title_in.name, description=title_in.description)
+    db.add(new_title)
+    try:
+        db.commit()
+        db.refresh(new_title)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Title name already exists")
+    return TitleResponse(id=new_title.id, name=new_title.name, description=new_title.description, requirements=[])
+
+
+@router.put("/admin/titles/{title_id}", response_model=TitleResponse)
+def update_title(
+    title_id: int,
+    title_in: TitleUpdate,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """称号を編集する"""
+    title = db.query(Title).filter(Title.id == title_id).first()
+    if not title:
+        raise HTTPException(status_code=404, detail="Title not found")
+    if title_in.name is not None:
+        title.name = title_in.name
+    if title_in.description is not None:
+        title.description = title_in.description
+    try:
+        db.commit()
+        db.refresh(title)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Title name already exists")
+    reqs = [
+        TitleRequirementResponse(
+            id=r.id, category_id=r.category_id,
+            category_name=r.category.name if r.category else None,
+            threshold=r.threshold,
+        )
+        for r in title.requirements
+    ]
+    return TitleResponse(id=title.id, name=title.name, description=title.description, requirements=reqs)
+
+
+@router.delete("/admin/titles/{title_id}", status_code=204)
+def delete_title(
+    title_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """称号を削除する"""
+    title = db.query(Title).filter(Title.id == title_id).first()
+    if not title:
+        raise HTTPException(status_code=404, detail="Title not found")
+    db.delete(title)
+    db.commit()
+
+
+@router.post("/admin/titles/{title_id}/requirements", response_model=TitleRequirementResponse, status_code=201)
+def add_title_requirement(
+    title_id: int,
+    req_in: TitleRequirementCreate,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """称号に条件を追加する"""
+    title = db.query(Title).filter(Title.id == title_id).first()
+    if not title:
+        raise HTTPException(status_code=404, detail="Title not found")
+    new_req = TitleRequirement(
+        title_id=title_id,
+        category_id=req_in.category_id,
+        threshold=req_in.threshold,
+    )
+    db.add(new_req)
+    try:
+        db.commit()
+        db.refresh(new_req)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Requirement for this category already exists")
+    return TitleRequirementResponse(
+        id=new_req.id,
+        category_id=new_req.category_id,
+        category_name=new_req.category.name if new_req.category else None,
+        threshold=new_req.threshold,
+    )
+
+
+@router.delete("/admin/titles/{title_id}/requirements/{req_id}", status_code=204)
+def delete_title_requirement(
+    title_id: int,
+    req_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """称号の条件を削除する"""
+    req = db.query(TitleRequirement).filter(
+        TitleRequirement.id == req_id,
+        TitleRequirement.title_id == title_id,
+    ).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+    db.delete(req)
+    db.commit()

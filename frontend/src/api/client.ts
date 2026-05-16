@@ -219,3 +219,74 @@ export const getDashboard = async (token: string): Promise<DashboardData> => {
   })
   return data
 }
+
+// 称号
+
+import type { Title, UserTitle, TitleRequirement } from '../types'
+
+export const getTitles = async (): Promise<Title[]> => {
+  const { data } = await api.get<Title[]>('/titles')
+  return data
+}
+
+export const getMyTitles = async (token: string): Promise<UserTitle[]> => {
+  const { data } = await api.get<UserTitle[]>('/users/me/titles', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return data
+}
+
+export const createAdminTitle = async (
+  payload: { name: string; description?: string },
+  authHeader: string,
+): Promise<Title> => {
+  const { data } = await api.post<Title>('/admin/titles', payload, {
+    headers: { Authorization: authHeader },
+  })
+  return data
+}
+
+export const updateAdminTitle = async (
+  titleId: number,
+  payload: { name?: string; description?: string },
+  authHeader: string,
+): Promise<Title> => {
+  const { data } = await api.put<Title>(`/admin/titles/${titleId}`, payload, {
+    headers: { Authorization: authHeader },
+  })
+  return data
+}
+
+export const deleteAdminTitle = async (titleId: number, authHeader: string): Promise<void> => {
+  await api.delete(`/admin/titles/${titleId}`, { headers: { Authorization: authHeader } })
+}
+
+export const addTitleRequirement = async (
+  titleId: number,
+  payload: { category_id: number; threshold: number },
+  authHeader: string,
+): Promise<TitleRequirement> => {
+  const { data } = await api.post<TitleRequirement>(
+    `/admin/titles/${titleId}/requirements`,
+    payload,
+    { headers: { Authorization: authHeader } },
+  )
+  return data
+}
+
+export const deleteTitleRequirement = async (
+  titleId: number,
+  reqId: number,
+  authHeader: string,
+): Promise<void> => {
+  await api.delete(`/admin/titles/${titleId}/requirements/${reqId}`, {
+    headers: { Authorization: authHeader },
+  })
+}
+
+export const getAdminTitleList = async (authHeader: string): Promise<Title[]> => {
+  const { data } = await api.get<Title[]>('/admin/titles', {
+    headers: { Authorization: authHeader },
+  })
+  return data
+}

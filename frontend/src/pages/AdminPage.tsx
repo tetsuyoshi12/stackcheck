@@ -4,9 +4,11 @@ import {
   getTopics, postTopic, postQuestion, uploadCsv,
   getCategories, postCategory, updateTopic, deleteTopic,
   getAdminTopics, getAdminQuestions, updateQuestion, deleteQuestion,
+  getAdminTitleList, createAdminTitle, updateAdminTitle, deleteAdminTitle,
+  addTitleRequirement, deleteTitleRequirement,
 } from '../api/client'
 import type { CsvUploadResult, TopicAdminResponse } from '../api/client'
-import type { Topic, QuestionCreate, Category, Question } from '../types'
+import type { Topic, QuestionCreate, Category, Question, Title } from '../types'
 import axios from 'axios'
 
 interface Message { type: 'success' | 'error'; text: string }
@@ -22,7 +24,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
-  const [tab, setTab] = useState<'list' | 'register'>('list')
+  const [tab, setTab] = useState<'list' | 'register' | 'titles'>('list')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState<Message | null>(null)
@@ -53,6 +55,15 @@ export default function AdminPage() {
   const [registerTopicId, setRegisterTopicId] = useState(0)
   const [registerTopicQuestions, setRegisterTopicQuestions] = useState<Question[]>([])
   const [registerOrder, setRegisterOrder] = useState<number | null>(null)
+  // 称号管理タブ
+  const [adminTitles, setAdminTitles] = useState<Title[]>([])
+  const [newTitleName, setNewTitleName] = useState('')
+  const [newTitleDesc, setNewTitleDesc] = useState('')
+  const [editingTitle, setEditingTitle] = useState<Title | null>(null)
+  const [editTitleName, setEditTitleName] = useState('')
+  const [editTitleDesc, setEditTitleDesc] = useState('')
+  const [reqCategoryId, setReqCategoryId] = useState(0)
+  const [reqThreshold, setReqThreshold] = useState(80)
 
   const authHeader = () => `Basic ${btoa(`${username}:${password}`)}`
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -206,8 +217,7 @@ export default function AdminPage() {
     }
   }
 
-  const handleRegisterTopicChange = async (topicId: number) => {
-    setRegisterTopicId(topicId)
+  const handleRegisterTopicChange = async (topicId: number) => {    setRegisterTopicId(topicId)
     setRegisterOrder(null)
     setQuestionForm({ ...EMPTY_QUESTION, topic_id: topicId })
     if (topicId) {
@@ -242,8 +252,74 @@ export default function AdminPage() {
     }
   }
 
-  const handleCreateCategory = async () => {
+  // ---- 称号管理 ----
+  const loadAdminTitles = async () => {
     try {
+      const ts = await getAdminTitleList(authHeader())
+      setAdminTitles(ts)
+    } catch { showMessage('error', '称号の取得に失敗しました') }
+  }
+
+  const handleCreateTitle = async () => {
+    try {
+      await createAdminTitle({ name: newTitleName, description: newTitleDesc || undefined }, authHeader())
+      showMessage('success', `称号「${newTitleName}」を登録しました`)
+      setNewTitleName(''); setNewTitleDesc('')
+      loadAdminTitles()
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
+        else if (err.response?.status === 409) showMessage('error', '同じ名前の称号が既に存在します')
+        else showMessage('error', 'エラーが発生しました')
+      }
+    }
+  }
+
+  const handleSaveTitle = async () => {
+    if (!editingTitle) return
+    try {
+      await updateAdminTitle(editingTitle.id, { name: editTitleName, description: editTitleDesc || undefined }, authHeader())
+      showMessage('success', '称号を更新しました')
+      setEditingTitle(null)
+      loadAdminTitles()
+    } catch (err) {
+      if (axios.isAxiosError(err)) showMessage('error', 'エラーが発生しました')
+    }
+  }
+
+  const handleDeleteTitle = async (t: Title) => {
+    if (!window.confirm(`称号「${t.name}」を削除しますか？`)) return
+    try {
+      await deleteAdminTitle(t.id, authHeader())
+      showMessage('success', '称号を削除しました')
+      loadAdminTitles()
+    } catch { showMessage('error', '削除に失敗しました') }
+  }
+
+  const handleAddRequirement = async (titleId: number) => {
+    if (!reqCategoryId) { showMessage('error', 'カテゴリを選択してください'); return }
+    try {
+      await addTitleRequirement(titleId, { category_id: reqCategoryId, threshold: reqThreshold }, authHeader())
+      showMessage('success', '条件を追加しました')
+      setReqCategoryId(0); setReqThreshold(80)
+      loadAdminTitles()
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 409) showMessage('error', 'このカテゴリの条件は既に設定されています')
+        else showMessage('error', 'エラーが発生しました')
+      }
+    }
+  }
+
+  const handleDeleteRequirement = async (titleId: number, reqId: number) => {
+    try {
+      await deleteTitleRequirement(titleId, reqId, authHeader())
+      showMessage('success', '条件を削除しました')
+      loadAdminTitles()
+    } catch { showMessage('error', '削除に失敗しました') }
+  }
+
+  const handleCreateCategory = async () => {    try {
       await postCategory(categoryName, authHeader())
       showMessage('success', `カテゴリ「${categoryName}」を登録しました`)
       setCategoryName('')
@@ -395,6 +471,9 @@ export default function AdminPage() {
         </button>
         <button onClick={() => setTab('register')} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'register' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           新規登録
+        </button>
+        <button onClick={() => { setTab('titles'); loadAdminTitles() }} className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'titles' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          称号管理
         </button>
       </div>
 
@@ -557,6 +636,96 @@ export default function AdminPage() {
               )}
             </section>
           )}
+        </div>
+      )}
+
+      {/* ===== 称号管理タブ ===== */}
+      {tab === 'titles' && (
+        <div className="space-y-6">
+          {/* 称号登録 */}
+          <section className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="font-semibold text-gray-700 mb-3">称号登録</h2>
+            <div className="space-y-2">
+              <input type="text" placeholder="称号名（例：データサイエンティストの鬼）" value={newTitleName}
+                onChange={(e) => setNewTitleName(e.target.value)} className={inputCls} />
+              <input type="text" placeholder="説明（任意）" value={newTitleDesc}
+                onChange={(e) => setNewTitleDesc(e.target.value)} className={inputCls} />
+              <button onClick={handleCreateTitle} disabled={!newTitleName.trim()} className={btnPrimary}>
+                登録
+              </button>
+            </div>
+          </section>
+
+          {/* 称号一覧 */}
+          <section className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="font-semibold text-gray-700 mb-4">称号一覧</h2>
+            {adminTitles.length === 0 ? (
+              <p className="text-sm text-gray-400">称号がありません</p>
+            ) : (
+              <div className="space-y-4">
+                {adminTitles.map((t) => (
+                  <div key={t.id} className="border border-gray-200 rounded-xl p-4">
+                    {editingTitle?.id === t.id ? (
+                      <div className="space-y-2">
+                        <input value={editTitleName} onChange={(e) => setEditTitleName(e.target.value)} className={inputCls} placeholder="称号名" />
+                        <input value={editTitleDesc} onChange={(e) => setEditTitleDesc(e.target.value)} className={inputCls} placeholder="説明" />
+                        <div className="flex gap-2">
+                          <button onClick={handleSaveTitle} className={btnPrimary}>保存</button>
+                          <button onClick={() => setEditingTitle(null)} className={btnSecondary}>キャンセル</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <span className="font-semibold text-gray-800">{t.name}</span>
+                            {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => { setEditingTitle(t); setEditTitleName(t.name); setEditTitleDesc(t.description || '') }} className={btnSecondary}>編集</button>
+                            <button onClick={() => handleDeleteTitle(t)} className={btnDanger}>削除</button>
+                          </div>
+                        </div>
+
+                        {/* 条件一覧 */}
+                        <div className="space-y-1 mb-3">
+                          {t.requirements.length === 0 ? (
+                            <p className="text-xs text-gray-400">条件なし</p>
+                          ) : (
+                            t.requirements.map((r) => (
+                              <div key={r.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
+                                <span className="text-xs text-gray-700">
+                                  {r.category_name} ≥ {r.threshold}%
+                                </span>
+                                <button onClick={() => handleDeleteRequirement(t.id, r.id)} className="text-xs text-red-400 hover:text-red-600">削除</button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* 条件追加 */}
+                        <div className="flex gap-2 items-center">
+                          <select value={reqCategoryId} onChange={(e) => setReqCategoryId(Number(e.target.value))}
+                            className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400">
+                            <option value={0}>カテゴリを選択</option>
+                            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                          <input type="number" min={0} max={100} value={reqThreshold}
+                            onChange={(e) => setReqThreshold(Number(e.target.value))}
+                            className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
+                            placeholder="閾値%" />
+                          <button onClick={() => handleAddRequirement(t.id)}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors">
+                            条件追加
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
 

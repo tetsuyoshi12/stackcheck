@@ -15,7 +15,7 @@ const OPTION_LABELS: Record<string, string> = { a: 'A', b: 'B', c: 'C', d: 'D' }
 export default function ResultPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, token } = useAuth()
+  const { user, token, refreshTitles } = useAuth()
   const state = location.state as LocationState | null
 
   if (!state?.answers) {
@@ -38,7 +38,7 @@ export default function ResultPage() {
         })),
       },
       token,
-    ).catch(() => {}) // 保存失敗はサイレントに無視
+    ).then(() => refreshTitles()).catch(() => {}) // 保存失敗はサイレントに無視
   }, [])
 
   return (

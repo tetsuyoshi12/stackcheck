@@ -6,7 +6,7 @@ from sqlalchemy import func, and_
 from database import get_db
 from models import (
     User, Topic, Question, QuizSession, SessionAnswer, TopicMastery,
-    Category,
+    Category, Title, TitleRequirement, UserTitle,
 )
 from schemas import SessionCreate, SessionResponse, DashboardResponse, CategoryMastery, CategoryAccuracy, DailyActivity
 from routers.auth import get_current_user
@@ -66,7 +66,58 @@ def create_session(
 
     db.commit()
     db.refresh(new_session)
+
+    # 称号付与ロジック
+    _update_user_titles(db, current_user.id)
+
     return new_session
+
+
+def _update_user_titles(db: Session, user_id: int) -> None:
+    """全称号の条件を評価してUserTitleを更新する"""
+    titles = db.query(Title).all()
+    for title in titles:
+        if not title.requirements:
+            continue
+
+        # 全条件を満たすか確認
+        all_met = True
+        for req in title.requirements:
+            # カテゴリ内の全トピック数
+            total = db.query(Topic).filter(Topic.category_id == req.category_id).count()
+            if total == 0:
+                all_met = False
+                break
+            # 習熟済みトピック数
+            mastered = db.query(TopicMastery).filter(
+                TopicMastery.user_id == user_id,
+                TopicMastery.is_mastered == True,
+                TopicMastery.topic_id.in_(
+                    db.query(Topic.id).filter(Topic.category_id == req.category_id)
+                ),
+            ).count()
+            mastery_rate = mastered / total
+            # threshold は 0〜100 の整数（%）
+            if mastery_rate * 100 < req.threshold:
+                all_met = False
+                break
+
+        # UserTitle を更新または作成
+        user_title = db.query(UserTitle).filter(
+            UserTitle.user_id == user_id,
+            UserTitle.title_id == title.id,
+        ).first()
+
+        if all_met:
+            if not user_title:
+                db.add(UserTitle(user_id=user_id, title_id=title.id, is_active=True))
+            else:
+                user_title.is_active = True
+        else:
+            if user_title:
+                user_title.is_active = False
+
+    db.commit()
 
 
 @router.get("/dashboard", response_model=DashboardResponse)
