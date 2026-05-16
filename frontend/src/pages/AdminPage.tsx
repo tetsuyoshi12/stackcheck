@@ -19,6 +19,9 @@ const PAGE_SIZE = 10
 
 export default function AdminPage() {
   const navigate = useNavigate()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState('')
   const [tab, setTab] = useState<'list' | 'register'>('list')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -55,6 +58,24 @@ export default function AdminPage() {
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text })
     setTimeout(() => setMessage(null), 4000)
+  }
+
+  const handleLogin = async () => {
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      const header = `Basic ${btoa(`${username}:${password}`)}`
+      await getAdminTopics(header)
+      setIsAuthenticated(true)
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setAuthError('認証情報が正しくありません')
+      } else {
+        setAuthError('接続に失敗しました。しばらくしてから再試行してください')
+      }
+    } finally {
+      setAuthLoading(false)
+    }
   }
 
   const refreshAll = () => {
@@ -300,6 +321,57 @@ export default function AdminPage() {
   const btnDanger = "px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
   const btnSecondary = "px-3 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors"
 
+  // 認証ゲート
+  if (!isAuthenticated) {
+    return (
+      <div className="flex justify-center items-center min-h-[80vh]">
+        <div className="bg-white rounded-xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
+          <h1 className="text-xl font-bold text-gray-800 mb-1">管理者ログイン</h1>
+          <p className="text-xs text-gray-400 mb-6">管理者用のユーザー名とパスワードを入力してください</p>
+
+          {authError && (
+            <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200">
+              {authError}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="ユーザー名"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              className={inputCls}
+              autoFocus
+            />
+            <input
+              type="password"
+              placeholder="パスワード"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              className={inputCls}
+            />
+            <button
+              onClick={handleLogin}
+              disabled={!username.trim() || !password.trim() || authLoading}
+              className={`w-full py-2 ${btnPrimary}`}
+            >
+              {authLoading ? 'ログイン中...' : 'ログイン'}
+            </button>
+          </div>
+
+          <div className="mt-4 text-center">
+            <button onClick={() => navigate('/')} className="text-sm text-gray-400 hover:text-gray-600">
+              ← トップに戻る
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="mb-6">
@@ -315,15 +387,6 @@ export default function AdminPage() {
           {message.text}
         </div>
       )}
-
-      {/* 認証情報 */}
-      <section className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h2 className="font-semibold text-gray-700 mb-3">認証情報</h2>
-        <div className="flex gap-3">
-          <input data-testid="admin-username" type="text" placeholder="ユーザー名" value={username} onChange={(e) => setUsername(e.target.value)} className={inputCls} />
-          <input data-testid="admin-password" type="password" placeholder="パスワード" value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
-        </div>
-      </section>
 
       {/* タブ */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1">
