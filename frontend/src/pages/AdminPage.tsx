@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   getTopics, postTopic, postQuestion, uploadCsv,
-  getCategories, postCategory, updateTopic, deleteTopic,
+  getCategories, postCategory, deleteCategory, updateTopic, deleteTopic,
   getAdminTopics, getAdminQuestions, updateQuestion, deleteQuestion,
   getAdminTitleList, createAdminTitle, updateAdminTitle, deleteAdminTitle,
   addTitleRequirement, deleteTitleRequirement,
@@ -329,6 +329,20 @@ export default function AdminPage() {
         if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
         else if (err.response?.status === 409) showMessage('error', '同じ名前のカテゴリが既に存在します')
         else showMessage('error', 'エラーが発生しました')
+      }
+    }
+  }
+
+  const handleDeleteCategory = async (cat: Category) => {
+    if (!window.confirm(`カテゴリ「${cat.name}」を削除しますか？\n関連するトピックのカテゴリは未設定になります。`)) return
+    try {
+      await deleteCategory(cat.id, authHeader())
+      showMessage('success', `カテゴリ「${cat.name}」を削除しました`)
+      getCategories().then(setCategories).catch(() => {})
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 401) showMessage('error', '認証に失敗しました')
+        else showMessage('error', 'カテゴリの削除に失敗しました')
       }
     }
   }
@@ -765,7 +779,18 @@ export default function AdminPage() {
             </div>
             {categories.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
-                {categories.map((c) => <span key={c.id} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full border border-blue-100">{c.name}</span>)}
+                {categories.map((c) => (
+                  <span key={c.id} className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full border border-blue-100">
+                    {c.name}
+                    <button
+                      onClick={() => handleDeleteCategory(c)}
+                      className="ml-0.5 text-blue-400 hover:text-red-500 transition-colors font-bold leading-none"
+                      title={`${c.name}を削除`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
               </div>
             )}
           </section>

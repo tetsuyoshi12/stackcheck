@@ -60,6 +60,12 @@ export const postCategory = async (
   return data
 }
 
+export const deleteCategory = async (categoryId: number, authHeader: string): Promise<void> => {
+  await api.delete(`/admin/categories/${categoryId}`, {
+    headers: { Authorization: authHeader },
+  })
+}
+
 export interface TopicAdminResponse {
   id: number
   title: string

@@ -568,3 +568,20 @@ def delete_title_requirement(
         raise HTTPException(status_code=404, detail="Requirement not found")
     db.delete(req)
     db.commit()
+
+
+# --- カテゴリ削除 ---
+
+@router.delete("/admin/categories/{category_id}", status_code=204)
+def delete_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_credentials),
+):
+    """カテゴリを削除する（関連トピックのcategory_idはNULLになる）"""
+    from models import Category
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    db.delete(category)
+    db.commit()
