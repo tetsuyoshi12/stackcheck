@@ -331,23 +331,26 @@ async def upload_csv(
     category_cache: dict[str, int] = {}
 
     for row_num, row in enumerate(reader, start=2):
-        topic_title = row.get("topic_title", "").strip()
+        topic_title = (row.get("topic_title") or "").strip()
         if not topic_title:
             errors.append(f"行{row_num}: topic_titleが空です")
             skip_count += 1
             continue
 
         try:
+            def s(val) -> str:
+                return (val or "").strip()
+
             question_data = QuestionCreate(
                 topic_id=0,
-                question_text=row.get("question_text", "").strip(),
-                option_a=row.get("option_a", "").strip(),
-                option_b=row.get("option_b", "").strip(),
-                option_c=row.get("option_c", "").strip(),
-                option_d=row.get("option_d", "").strip(),
-                correct_option=row.get("correct_option", "").strip().lower(),  # type: ignore
-                explanation=row.get("explanation", "").strip(),
-                order=int(row.get("order", 0)),
+                question_text=s(row.get("question_text")),
+                option_a=s(row.get("option_a")),
+                option_b=s(row.get("option_b")),
+                option_c=s(row.get("option_c")),
+                option_d=s(row.get("option_d")),
+                correct_option=s(row.get("correct_option")).lower(),  # type: ignore
+                explanation=s(row.get("explanation")),
+                order=int(row.get("order") or 0),
             )
         except (ValidationError, ValueError) as e:
             errors.append(f"行{row_num}: バリデーションエラー - {str(e)[:100]}")
